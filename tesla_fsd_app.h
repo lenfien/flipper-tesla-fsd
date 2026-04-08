@@ -11,12 +11,11 @@
 #include "libraries/mcp_can_2515.h"
 #include "fsd_logic/fsd_handler.h"
 
-#define TESLA_FSD_VERSION "2.7.1"
+#define TESLA_FSD_VERSION "2.4.0"
 
 typedef enum {
     TeslaFSDSceneMainMenu,
     TeslaFSDSceneSettings,
-    TeslaFSDSceneExtras,
     TeslaFSDSceneHWDetect,
     TeslaFSDSceneHWSelect,
     TeslaFSDSceneRunning,
@@ -66,17 +65,6 @@ typedef struct {
     bool nag_killer;
     bool precondition;       // periodic 0x082 inject for battery preheat
     OpMode op_mode;          // Active / ListenOnly / Service
-
-    // extras toggles (BETA — need on-vehicle verification per CAN ID)
-    bool extra_hazard_lights;
-    bool extra_rear_window_heat;
-    bool extra_auto_wipers_off;
-    bool extra_fold_mirrors;
-    bool extra_rear_fog;
-    uint8_t extra_steering_mode; // 0=no change, 1=comfort, 2=standard, 3=sport (Chassis CAN)
-    bool extra_highbeam_strobe;   // rapid high beam flash (Party CAN 0x249)
-    bool extra_turn_left;         // inject left turn signal
-    bool extra_turn_right;        // inject right turn signal
 } TeslaFSDApp;
 
 TeslaFSDApp* tesla_fsd_app_alloc(void);

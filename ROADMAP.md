@@ -47,21 +47,6 @@ retransmit. Estimated ~30 LOC each.
 - [ ] `TractionControl` off (`0x2A1 ESP_status`)
 - [ ] `TrackMode` enter/exit (`0x293` + `0x2B9`)
 - [ ] `WiperMode` cycle / `WipersWasher` pulse (`0x3E2`)
-- [ ] **Cybertruck Homelink bridge** — requested by @JoshuaSpain on [slxslx/tesla-open-can-mod-slx-repo#2](https://gitlab.com/slxslx/tesla-open-can-mod-slx-repo/-/issues/2). Tesla removed the Homelink module from Cybertruck and replaced it with a MyQ subscription. The CT's firmware almost certainly still runs the Homelink code path — Tesla is known to leave code for removed hardware (rain sensor, ultrasonic, etc.) — so the car is plausibly sending a "Homelink requested" frame every time the UI button is pressed, it just has no physical module to act on it.
-  
-  **Approach (credit @JoshuaSpain for the direction):** instead of emitting RF from a Flipper sub-GHz radio, sniff the frame the car sends when the Homelink button is pressed, translate it to an HTTP webhook / MQTT publish, and let Home Assistant + [RATGDO](https://github.com/paul-wieland/ratgdo) (or any other HA-compatible garage opener) do the actual door-opening. No RF rolling-code reproduction, no hardware emitter, no subscription.
-  
-  **Bus layer:** likely LIN, not CAN. Homelink on factory-equipped Teslas sits as a LIN slave off the front body controller (VCFRONT on Model 3/Y, BCM-equivalent on S/X), which matches how Tesla wires other low-speed body actuators. There may also be a shadow copy of the "Homelink requested" frame on body CAN — if so, the Flipper + MCP2515 rig already in this project can read it directly; otherwise a Flipper-compatible LIN transceiver is needed.
-  
-  **Blocked on:** a Model Y LIN-bus capture around a working Homelink button press. @JoshuaSpain owns a Model Y with the factory module and has offered to do the dump. Waiting on the raw capture (candump / savvycan / csv) before writing the handler — once we have the frame ID and payload, the listener is ~20 lines.
-  
-  **Implementation skeleton once unblocked:**
-  1. Add a new CAN (and/or LIN) ID constant for the Homelink-request frame
-  2. Register a read-only handler in the dispatch loop that matches the frame, optionally checks a payload flag, and fires a webhook to a configurable URL (WiFi-enabled ESP32 port or external companion)
-  3. Add a Settings toggle for "Homelink bridge" with a URL text entry
-  4. Document the Home Assistant automation receiver in `HARDWARE.md` (`service: rest_command.ratgdo_door_open` pattern)
-  
-  **Nice-to-have:** also sniff the frame on an actual Cybertruck to confirm the CT still emits it, rather than assuming from Tesla's firmware patterns.
 
 ## Tier 3 — needs read-parse-decide (already have BMS pattern to copy)
 

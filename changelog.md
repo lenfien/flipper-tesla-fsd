@@ -1,62 +1,3 @@
-## 2.7 — Upstream parity + Momentum fix + X179 guide
-
-- **Ported 5 features from upstream** ([ev-open-can-tools](https://github.com/ev-open-can-tools/ev-open-can-tools)):
-  - GTW autopilot tier readback (`0x7FF` mux=2): shows the vehicle's actual AP entitlement — NONE/HIGHWAY/ENHANCED/SELF_DRIVING/BASIC. If it reads NONE or BASIC, FSD features won't work regardless of CAN injection.
-  - Track Mode inject (`0x313`): sets track mode request ON with checksummed retransmit. Service mode only.
-  - Enhanced Autopilot flag: mux=1 now also sets bit 46 when enabled — required for EAP auto lane change and summon on HW3/HW4.
-  - HW4 speed offset runtime: mux=2 byte[1] lower 6 bits can be overridden at runtime.
-  - Speed profile lock: follow distance stalk no longer overrides the speed profile when locked.
-- **Fix: SPI callback const mismatch** — `Spi_lib.c` now compiles on Momentum and Xtreme firmware in addition to official. The `FuriHalSpiBusHandleEventCallback` typedef differs between firmware builds; fixed with a portable cast. Reported by @LeeSSXX in issue #17.
-- **HARDWARE.md complete rewrite:**
-  - X179 connector is now the recommended connection point (4-wire: CAN-H + CAN-L + 12V + GND).
-  - Full X179 20-pin and 26-pin pinout tables with all 4 CAN bus pairs documented.
-  - Explains why Pin 13/14 (bus 6) is a Gateway-forwarded mixed bus that carries both Party CAN and Vehicle CAN signals — one connection for nearly all features.
-  - Added X052 connector for 2019 Model 3 (pre-facelift): Pin 44/45 CAN + Pin 20/22 12V/GND, confirmed by @THER4iN.
-  - Added LILYGO T-2CAN ESP32-S3 (~$24, dual isolated CAN) as recommended future-proof board.
-  - All hardware prices corrected from verified official store listings.
-  - Deep sleep guidance for permanent vehicle installation.
-- **Upstream link updated**: the upstream project moved from GitLab (`slxslx/tesla-open-can-mod-slx-repo`, archiving) to GitHub (`ev-open-can-tools/ev-open-can-tools`, vehicle-agnostic naming).
-- **37 total CAN handlers** (14 TX write + 23 RX read-only).
-
-## 2.6 — Full Party CAN coverage
-
-- **32 CAN handlers** (12 TX write + 20 RX read-only), up from 19 in v2.5. Every useful signal on Tesla Model 3/Y Party CAN is now parsed or injectable.
-- **New write handlers (Service mode only):**
-  - High Beam Strobe — rapid PULL/IDLE toggle on `SCCM_leftStalk (0x249)` at 200ms. Same Party CAN OBD-II tap.
-  - Turn Signal Left/Right — inject turn indicator via `SCCM_leftStalk (0x249)` UP_1/DOWN_1.
-  - Wiper Wash — inject wiper wash button press via `SCCM_leftStalk (0x249)`.
-  - Steering Tune — `GTW_epasTuneRequest (0x101)` COMFORT/STANDARD/SPORT (Chassis CAN tap required).
-  - Hazard Lights — `VCFRONT_hazardLightRequest (0x3F5)`.
-  - Wiper Off — force `DAS_wiperSpeed (0x3F5)` to 0.
-  - Park Inject — `SCCM_parkButtonStatus (0x229)` PRESSED (Vehicle CAN tap required).
-- **New read-only parsers (Party CAN, mode-independent):**
-  - `DAS_control (0x2B9)`: ACC state (ACC_ON=4), set cruise speed.
-  - `DAS_status (0x39B)`: AP hands-on state (4-bit nag), auto lane change, blind spot warning, blind spot avoidance, FCW, vision speed limit.
-  - `DAS_status2 (0x389)`: ACC report, AP activation failure reason.
-  - `DAS_settings (0x293)`: autosteer enabled readback.
-  - `DI_state (0x286)`: cruise state (enabled/standby/standstill), park brake, autopark, digital speed.
-  - `DI_torque (0x108)`: motor torque (Nm).
-  - `DI_speed (0x257)`: vehicle speed (kph), UI speed.
-  - `UI_warning (0x311)`: left/right blinker, any door open, seatbelt, high beam status.
-  - `SCCM_steeringAngleSensor (0x129)`: steering wheel angle (deg).
-  - `DAS_steeringControl (0x488)`: DAS steering request type + angle.
-  - `EPAS3S_currentTuneMode (0x370)`: current steering mode + torsion bar torque.
-  - `ESP_driverBrakeApply (0x145)`: brake pedal state.
-  - `DI_systemStatus (0x118)`: track mode state, traction control mode.
-  - `VCRIGHT_rearDefrostState (0x343)`: rear window defrost.
-- **Extras scene expanded** to 10 toggles: Hazard, Rear Window Heat, Auto Wipers Off, Fold Mirrors, Rear Fog, Steering [ChassisCAN], High Beam Strobe, Turn Left, Turn Right.
-- **New research docs:**
-  - `enhauto-re/FEIFAN_CAN_ANALYSIS.md` — technical analysis of the 非凡指揮官 (Feifan Commander, 69K+ sales in China) CAN injection techniques: continuous AP, stalk simulation, strobe, checksum formulas.
-  - `enhauto-re/COMMANDER_VS_TESLAMOD.md` — three-way feature comparison between enhauto S3XY Commander, Feifan Commander, and Tesla Mod.
-
-## 2.5 — Tesla Mod
-
-- **Rebrand: Tesla FSD Unlock → Tesla Mod.** The app name in the Flipper menu changes from "Tesla FSD" to "Tesla Mod". The repo URL stays the same (`hypery11/flipper-tesla-fsd`) for link stability. This reflects the project's evolution from a single-purpose FSD tool to a general Tesla CAN bus toolkit.
-- **Extras scene [BETA]** — a new submenu accessible from the main menu with toggles for CAN features beyond FSD: Hazard Lights, Rear Window Heat, Auto Wipers Off, Fold Mirrors, Rear Fog Light. These are marked BETA — the CAN IDs and bit positions come from public sources but need on-vehicle verification. Only active when Mode = Service. Adding a new extra is intentionally cheap (one bool + one toggle + one handler + one dispatch line). PRs welcome — see `CONTRIBUTING.md`.
-- **Multi-hardware welcome**: this project now explicitly welcomes ports to any hardware platform. The Flipper Zero version lives in the root, the ESP32 port in `esp32/`. If you want to port to RP2040, STM32, nRF, or anything else with a CAN transceiver, open a PR. See `HARDWARE.md` for the current hardware matrix.
-- Housekeeping: removed dead FSD CAN Mod Hub badge, fixed Starmixcraft dead links, filled SECURITY.md takedown chain.
-- Added Prerequisites section to README — FSD entitlement is required for FSD features, this is a region-gate bypass not a purchase bypass.
-
 ## 2.4
 
 - **Listen-Only is now the first-boot default.** The MCP2515 starts in hardware listen-only mode (physically incapable of TX) and the user must explicitly switch to Active in Settings → Mode. Safer for new users; matches the default of the ESP32 port from PR #6.
@@ -81,7 +22,7 @@
 - CRC error counter sampled from MCP2515 EFLG register, surfaced on screen
 - TX / RX / Err counters live on the running screen
 - Wiring sanity check: shows a clear "no CAN traffic — check wiring" warning after 5s with zero RX
-- Background-research notes on the enhauto S3XY Commander — derived from observing the unencrypted signals on its BLE and CAN interfaces — live in `enhauto-re/`
+- Background-research notes for the enhauto S3XY Commander reverse engineering live in `enhauto-re/RESEARCH.md`
 
 ## 2.1
 

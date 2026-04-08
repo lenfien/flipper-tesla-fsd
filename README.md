@@ -1,56 +1,26 @@
-[English](README.md) | [繁體中文](README_zh-TW.md) | [简体中文](README_zh-CN.md)
+[English](README.md) | [繁體中文](README_zh-TW.md)
 
-# Tesla Mod for Flipper Zero
+# Tesla FSD Unlock for Flipper Zero
 
-[![GitHub stars](https://img.shields.io/github/stars/hypery11/flipper-tesla-fsd?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/hypery11/flipper-tesla-fsd?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/network)
-[![GitHub release](https://img.shields.io/github/v/release/hypery11/flipper-tesla-fsd?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/releases)
-[![Downloads](https://img.shields.io/github/downloads/hypery11/flipper-tesla-fsd/total?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/releases)
-[![Last commit](https://img.shields.io/github/last-commit/hypery11/flipper-tesla-fsd?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/commits/main)
-[![Open issues](https://img.shields.io/github/issues/hypery11/flipper-tesla-fsd?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/issues)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](CONTRIBUTING.md)
+[![GitHub stars](https://img.shields.io/github/stars/hypery11/flipper-tesla-fsd?style=flat-square)](https://github.com/hypery11/flipper-tesla-fsd/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/hypery11/flipper-tesla-fsd?style=flat-square)](https://github.com/hypery11/flipper-tesla-fsd/network)
+[![GitHub release](https://img.shields.io/github/v/release/hypery11/flipper-tesla-fsd?style=flat-square)](https://github.com/hypery11/flipper-tesla-fsd/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue?style=flat-square)](LICENSE)
 [![Build](https://img.shields.io/badge/build-ufbt-brightgreen?style=flat-square)](https://github.com/flipperdevices/flipperzero-ufbt)
-[![Flipper target](https://img.shields.io/badge/Flipper%20target-7%20%2F%20API%2087.1-orange?style=flat-square)](https://github.com/flipperdevices/flipperzero-firmware)
+[![Featured on FSD CAN Mod Hub](https://img.shields.io/badge/featured%20on-FSD%20CAN%20Mod%20Hub-orange?style=flat-square)](https://fsdcanmod.com/project/hypery11-flipper-zero)
 
-> **Tesla FSD region-gate bypass for Flipper Zero.** Enables the FSD UI toggle for users who **already have an active FSD subscription or purchase** but are in a region where the "Traffic Light and Stop Sign Control" option is not exposed in the vehicle menu. HW3, HW4, Legacy HW1/HW2. FSD v14 ready. Also includes nag killer, ISA speed chime suppression, OTA guard, battery preconditioning trigger, and a live BMS dashboard — these work independently of FSD entitlement. Total hardware cost: Flipper Zero + Electronic Cats CAN Bus Add-On + OBD-II cable — or build the [$14 ESP32 port](https://github.com/hypery11/flipper-tesla-fsd/tree/main/esp32) instead.
-
-> [!IMPORTANT]
-> **An active FSD package is required for FSD features** — either purchased or subscribed. This tool enables the FSD functionality at the CAN bus level, but the vehicle still needs a valid FSD entitlement from Tesla. It is NOT a purchase bypass.
-
-> [!CAUTION]
-> **Tesla has begun issuing VIN-level bans** (April 2026). Affected vehicles lose the TLSSC toggle silently — no OTA, no warning, persists across account transfers and re-subscriptions. CAN injection cannot override a VIN ban. See [SECURITY.md](SECURITY.md) and [issue #18](https://github.com/hypery11/flipper-tesla-fsd/issues/18) for details. Non-FSD features (nag killer, BMS dashboard, diagnostics) are not affected.
->
-> If FSD subscriptions are not available in your region, the upstream community documents a workaround: create a Tesla account in a region where FSD subscriptions are offered (e.g. Canada), transfer the vehicle to that account, and subscribe. See the [upstream documentation](https://gitlab.com/slxslx/tesla-open-can-mod-slx-repo) for details.
->
-> Features like the Nag Killer, ISA Speed Chime Suppression, BMS Dashboard, and battery preconditioning work **without** FSD and do not require any subscription.
+Unlock Tesla FSD on your Flipper Zero. No subscription, no computer, just plug into OBD-II and go.
 
 <p align="center">
-  <img src="assets/demo.gif" alt="Tesla FSD unlock running on Flipper Zero — main menu, HW detect, and live BMS dashboard" width="600">
-</p>
-
-<p align="center">
-  <img src="screenshots/main_menu.png" alt="Flipper Zero Tesla FSD main menu" width="256">&nbsp;&nbsp;&nbsp;
-  <img src="screenshots/fsd_running.png" alt="Tesla FSD unlock running on Flipper Zero" width="256">
-</p>
-
-<p align="center">
-  <a href="https://star-history.com/#hypery11/flipper-tesla-fsd&Date">
-    <img src="https://api.star-history.com/svg?repos=hypery11/flipper-tesla-fsd&type=Date" alt="Star history" width="600">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/hypery11/flipper-tesla-fsd/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=hypery11/flipper-tesla-fsd" alt="Contributors">
-  </a>
+  <img src="screenshots/main_menu.png" alt="Main Menu" width="256">&nbsp;&nbsp;&nbsp;
+  <img src="screenshots/fsd_running.png" alt="FSD Running" width="256">
 </p>
 
 ---
 
 ## Features
 
-- Auto-detect HW3/HW4 from `GTW_carConfig` (`0x398` on legacy / `0x7FF` on Ethernet), or force manually — **note:** on 2020+ Model 3/Y HW3/HW4, `0x398` is on the Ethernet bus and may not appear on the CAN bus tap; use Force HW3 or Force HW4 if auto-detect doesn't find it
+- Auto-detect HW3/HW4 from `GTW_carConfig` (`0x398`), or force manually
 - **Legacy mode** for HW1/HW2 (Model S/X 2016-2019)
 - FSD unlock via bit manipulation on `UI_autopilotControl` (`0x3FD` / `0x3EE`)
 - Nag suppression (hands-on-wheel reminder)
@@ -62,7 +32,7 @@
 | Setting | Description |
 |---------|-------------|
 | **Mode** | `Active` / `Listen-Only` / `Service`. Listen-Only is the **first-boot default** as of v2.4 — the MCP2515 is put into hardware listen-only mode and physically cannot TX. Switch to Active when you're ready. |
-| **Force FSD** | Bypass the `isFSDSelectedInUI` CAN-level check so frames are modified even if the car's Traffic Light toggle is absent. **This does not bypass Tesla's server-side entitlement verification** — it only affects the local CAN frame flow. Useful when the toggle exists in the car but is hidden by the region UI gating. |
+| **Force FSD** | Enable FSD without "Traffic Light and Stop Sign Control" toggle — for regions where this option doesn't exist |
 | **Suppress Chime** | Kill the ISA speed warning chime (HW4 only, CAN ID `0x399`) |
 | **Emerg. Vehicle** | Enable emergency vehicle detection flag (HW4 only, bit59) |
 | **Nag Killer** | EPAS counter+1 echo on `0x370` (CAN 880 method, ported from upstream MR !44) |
@@ -188,7 +158,7 @@ If your car is listed and you've tested, please leave a thumbs-up on the relevan
 
 Older Model S/X vehicles (2016-2019) use a Mobileye-based architecture with different CAN IDs. The autopilot control frame is on `0x3EE` (1006) instead of `0x3FD` (1021), and the bit layout differs.
 
-The logic is documented in the [Karolynaz/waymo-fsd-can-mod](https://github.com/Karolynaz/waymo-fsd-can-mod) CanFeather mirror (the original `Starmixcraft/tesla-fsd-can-mod` GitLab upstream has since been removed). We need someone with a HW1/HW2 car to validate it before we ship.
+The logic is already documented (see [CanFeather LegacyHandler](https://gitlab.com/Starmixcraft/tesla-fsd-can-mod)), but we need someone with a HW1/HW2 car to validate it before we ship.
 
 **If you have a 2016-2019 Model S/X with FSD and want to help:**
 
@@ -236,18 +206,18 @@ Yes. Flipper has no built-in CAN. You need the Electronic Cats board or any MCP2
 
 | Project | What it is | Hardware |
 |---------|------------|----------|
-| [ev-open-can-tools/ev-open-can-tools](https://github.com/ev-open-can-tools/ev-open-can-tools) | The upstream project, now on GitHub as a vehicle-agnostic CAN mod toolkit. Formerly `Tesla-OPEN-CAN-MOD` on GitLab (taken down) → `slxslx/tesla-open-can-mod-slx-repo` (archiving) → now here. | Adafruit RP2040 CAN, Feather M4, ESP32, M5Stack ATOMIC CAN |
+| [slxslx/tesla-open-can-mod-slx-repo](https://gitlab.com/slxslx/tesla-open-can-mod-slx-repo) | The de facto upstream after the original Tesla-OPEN-CAN-MOD GitLab namespace was taken down. Broader scope ("general CAN mod tool, not just FSD"). | Adafruit RP2040 CAN, Feather M4, ESP32, M5Stack ATOMIC CAN |
 | ESP32 port — PR [#6](https://github.com/hypery11/flipper-tesla-fsd/pull/6) by @elonleo | Full ESP32 port of this project's CAN logic with a built-in WiFi web dashboard. ~$14 alternative to Flipper Zero + Add-On. | M5Stack ATOM Lite + ATOMIC CAN, Waveshare ESP32-S3-RS485-CAN |
 | [tumik/S3XY-candump](https://github.com/tumik/S3XY-candump) | Python tool to dump Tesla CAN bus over WiFi using an enhauto S3XY Commander as a Panda-protocol bridge | Commander dongle |
 | [dzid26/ESP32-DualCAN](https://github.com/dzid26/ESP32-DualCAN) | "Dorky Commander" — open-source hardware alternative to the enhauto S3XY Commander | ESP32 + dual CAN |
-| [Karolynaz/waymo-fsd-can-mod](https://github.com/Karolynaz/waymo-fsd-can-mod) | Mirror of the original `Starmixcraft/tesla-fsd-can-mod` CanFeather research — the source we ported from. The original GitLab upstream was taken down; this is the currently-reachable copy. | Adafruit Feather M4 CAN |
+| [Starmixcraft/tesla-fsd-can-mod](https://gitlab.com/Starmixcraft/tesla-fsd-can-mod) | Original CanFeather FSD reverse-engineering — the source we ported from | Adafruit RP2040 CAN |
 | [tuncasoftbildik/tesla-can-mod](https://github.com/tuncasoftbildik/tesla-can-mod) | Arduino reference implementation with working frame templates for several non-FSD features | Arduino + MCP2515 |
 
 ## Credits
 
 - [commaai/opendbc](https://github.com/commaai/opendbc) — Tesla CAN signal database
 - [ElectronicCats/flipper-MCP2515-CANBUS](https://github.com/ElectronicCats/flipper-MCP2515-CANBUS) — MCP2515 driver for Flipper
-- `Starmixcraft/tesla-fsd-can-mod` — original CanFeather FSD research (the GitLab repo has since been removed; mirror at [Karolynaz/waymo-fsd-can-mod](https://github.com/Karolynaz/waymo-fsd-can-mod))
+- [Starmixcraft/tesla-fsd-can-mod](https://gitlab.com/Starmixcraft/tesla-fsd-can-mod) — original CanFeather FSD research
 - mikegapinski/tesla-can-explorer — 40k Tesla CAN signal dictionary extracted from `libQtCarVAPI.so`
 - talas9/tesla_can_signals — per-model wire format reference
 
