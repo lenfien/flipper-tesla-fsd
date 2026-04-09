@@ -16,6 +16,10 @@
 > **Tesla Full Self-Driving (FSD) unlock for Flipper Zero.** One-button activation for HW3, HW4, and Legacy HW1/HW2 Model S/X. FSD v14 ready. Bypasses the "Traffic Light and Stop Sign Control" regional gate. Includes nag killer, ISA speed chime suppression, OTA guard, battery preconditioning trigger, and a live BMS dashboard. Total hardware cost: Flipper Zero + Electronic Cats CAN Bus Add-On + OBD-II cable — or build the $14 ESP32 port from [PR #6](https://github.com/hypery11/flipper-tesla-fsd/pull/6) instead.
 
 <p align="center">
+  <img src="assets/demo.gif" alt="Tesla FSD unlock running on Flipper Zero — main menu, HW detect, and live BMS dashboard" width="600">
+</p>
+
+<p align="center">
   <img src="screenshots/main_menu.png" alt="Flipper Zero Tesla FSD main menu" width="256">&nbsp;&nbsp;&nbsp;
   <img src="screenshots/fsd_running.png" alt="Tesla FSD unlock running on Flipper Zero" width="256">
 </p>
