@@ -113,11 +113,14 @@ After each session:
 
 ## Why all the caution
 
-The original [Tesla-OPEN-CAN-MOD](https://gitlab.com/) GitLab namespace
-was taken down recently, and a number of forks now carry the
-`deletion_scheduled` suffix on GitLab. We don't know exactly what
-triggered it, but the working assumption is that visible legal pressure
-on this kind of project is real and increasing. Conservative defaults
-(Listen-Only first boot, OTA Guard, narrow TX surface, explicit
+The original `Starmixcraft/tesla-fsd-can-mod` GitLab repo (the CanFeather
+research we ported from) and its `Tesla-OPEN-CAN-MOD/tesla-open-can-mod`
+successor namespace have both been taken down on GitLab, and a number of
+related forks now carry the `deletion_scheduled` suffix. We don't know
+exactly what triggered it — the working assumption is that visible legal
+pressure on this kind of project is real and increasing. Conservative
+defaults (Listen-Only first boot, OTA Guard, narrow TX surface, explicit
 disclaimer) make this project survivable for longer and protect the
-people who use it.
+people who use it. The currently-reachable community continuations are
+[slxslx/tesla-open-can-mod-slx-repo](https://gitlab.com/slxslx/tesla-open-can-mod-slx-repo)
+and [Karolynaz/waymo-fsd-can-mod](https://github.com/Karolynaz/waymo-fsd-can-mod).

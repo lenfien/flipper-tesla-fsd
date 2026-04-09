@@ -1,3 +1,9 @@
+## unreleased
+
+- Housekeeping: removed the `Featured on FSD CAN Mod Hub` README badge — the linked site (fsdcanmod.com) has stopped serving an A record across all public resolvers, so clicking the badge was a dead link. Private note on the site captured in the community workbook.
+- Fixed dead links to `gitlab.com/Starmixcraft/tesla-fsd-can-mod` across README, README_zh-TW, HARDWARE.md, and the HW1/HW2 Legacy Support section. The original GitLab upstream has been removed; replaced each reference with the `Karolynaz/waymo-fsd-can-mod` CanFeather mirror on GitHub.
+- Filled in the placeholder `https://gitlab.com/` link in SECURITY.md's "Why all the caution" section with the actual chain of takedowns (original Starmixcraft → Tesla-OPEN-CAN-MOD → now slxslx and Karolynaz as the reachable continuations).
+
 ## 2.4
 
 - **Listen-Only is now the first-boot default.** The MCP2515 starts in hardware listen-only mode (physically incapable of TX) and the user must explicitly switch to Active in Settings → Mode. Safer for new users; matches the default of the ESP32 port from PR #6.
