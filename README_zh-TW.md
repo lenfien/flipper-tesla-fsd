@@ -2,16 +2,31 @@
 
 # Tesla FSD 解鎖 — Flipper Zero
 
-[![GitHub stars](https://img.shields.io/github/stars/hypery11/flipper-tesla-fsd?style=flat-square)](https://github.com/hypery11/flipper-tesla-fsd/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/hypery11/flipper-tesla-fsd?style=flat-square)](https://github.com/hypery11/flipper-tesla-fsd/network)
-[![GitHub release](https://img.shields.io/github/v/release/hypery11/flipper-tesla-fsd?style=flat-square)](https://github.com/hypery11/flipper-tesla-fsd/releases)
+[![GitHub stars](https://img.shields.io/github/stars/hypery11/flipper-tesla-fsd?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/hypery11/flipper-tesla-fsd?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/network)
+[![GitHub release](https://img.shields.io/github/v/release/hypery11/flipper-tesla-fsd?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/releases)
+[![Downloads](https://img.shields.io/github/downloads/hypery11/flipper-tesla-fsd/total?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/releases)
+[![Last commit](https://img.shields.io/github/last-commit/hypery11/flipper-tesla-fsd?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/commits/main)
+[![Open issues](https://img.shields.io/github/issues/hypery11/flipper-tesla-fsd?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/issues)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue?style=flat-square)](LICENSE)
 
-用 Flipper Zero 解鎖 Tesla FSD。不用訂閱、不用電腦，插上 OBD-II 就能跑。
+> **Tesla Full Self-Driving（FSD）解鎖 — Flipper Zero 版。** 支援 HW3、HW4、Legacy HW1/HW2 Model S/X，FSD v14 可用。免訂閱解鎖、繞過「交通號誌與停車標誌控制」地區鎖、含 Nag 抑制、限速提示音消除、OTA 自動暫停、電池預熱觸發、BMS 即時儀表板。中規 Model 3 / Y / Highland 已確認可用。硬體成本：Flipper Zero + Electronic Cats CAN Bus Add-On + OBD-II 線；或做 [PR #6](https://github.com/hypery11/flipper-tesla-fsd/pull/6) 的 ESP32 移植版，總成本 ~$14 / ¥100。
 
 <p align="center">
-  <img src="screenshots/main_menu.png" alt="主選單" width="256">&nbsp;&nbsp;&nbsp;
-  <img src="screenshots/fsd_running.png" alt="FSD 運作中" width="256">
+  <img src="screenshots/main_menu.png" alt="Flipper Zero Tesla FSD 主選單" width="256">&nbsp;&nbsp;&nbsp;
+  <img src="screenshots/fsd_running.png" alt="Tesla FSD 解鎖運作中" width="256">
+</p>
+
+<p align="center">
+  <a href="https://star-history.com/#hypery11/flipper-tesla-fsd&Date">
+    <img src="https://api.star-history.com/svg?repos=hypery11/flipper-tesla-fsd&type=Date" alt="Star history" width="600">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/hypery11/flipper-tesla-fsd/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=hypery11/flipper-tesla-fsd" alt="Contributors">
+  </a>
 </p>
 
 ---
