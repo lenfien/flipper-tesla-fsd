@@ -13,6 +13,10 @@
 > **Tesla Full Self-Driving（FSD）解鎖 — Flipper Zero 版。** 支援 HW3、HW4、Legacy HW1/HW2 Model S/X，FSD v14 可用。免訂閱解鎖、繞過「交通號誌與停車標誌控制」地區鎖、含 Nag 抑制、限速提示音消除、OTA 自動暫停、電池預熱觸發、BMS 即時儀表板。中規 Model 3 / Y / Highland 已確認可用。硬體成本：Flipper Zero + Electronic Cats CAN Bus Add-On + OBD-II 線；或做 [PR #6](https://github.com/hypery11/flipper-tesla-fsd/pull/6) 的 ESP32 移植版，總成本 ~$14 / ¥100。
 
 <p align="center">
+  <img src="assets/demo.gif" alt="Tesla FSD 解鎖運作中 — 主選單、HW 偵測、BMS 即時儀表板" width="600">
+</p>
+
+<p align="center">
   <img src="screenshots/main_menu.png" alt="Flipper Zero Tesla FSD 主選單" width="256">&nbsp;&nbsp;&nbsp;
   <img src="screenshots/fsd_running.png" alt="Tesla FSD 解鎖運作中" width="256">
 </p>
