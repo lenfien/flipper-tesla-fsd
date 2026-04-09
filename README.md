@@ -2,17 +2,34 @@
 
 # Tesla FSD Unlock for Flipper Zero
 
-[![GitHub stars](https://img.shields.io/github/stars/hypery11/flipper-tesla-fsd?style=flat-square)](https://github.com/hypery11/flipper-tesla-fsd/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/hypery11/flipper-tesla-fsd?style=flat-square)](https://github.com/hypery11/flipper-tesla-fsd/network)
-[![GitHub release](https://img.shields.io/github/v/release/hypery11/flipper-tesla-fsd?style=flat-square)](https://github.com/hypery11/flipper-tesla-fsd/releases)
+[![GitHub stars](https://img.shields.io/github/stars/hypery11/flipper-tesla-fsd?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/hypery11/flipper-tesla-fsd?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/network)
+[![GitHub release](https://img.shields.io/github/v/release/hypery11/flipper-tesla-fsd?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/releases)
+[![Downloads](https://img.shields.io/github/downloads/hypery11/flipper-tesla-fsd/total?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/releases)
+[![Last commit](https://img.shields.io/github/last-commit/hypery11/flipper-tesla-fsd?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/commits/main)
+[![Open issues](https://img.shields.io/github/issues/hypery11/flipper-tesla-fsd?style=flat-square&logo=github)](https://github.com/hypery11/flipper-tesla-fsd/issues)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](CONTRIBUTING.md)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue?style=flat-square)](LICENSE)
 [![Build](https://img.shields.io/badge/build-ufbt-brightgreen?style=flat-square)](https://github.com/flipperdevices/flipperzero-ufbt)
+[![Flipper target](https://img.shields.io/badge/Flipper%20target-7%20%2F%20API%2087.1-orange?style=flat-square)](https://github.com/flipperdevices/flipperzero-firmware)
 
-Unlock Tesla FSD on your Flipper Zero. No subscription, no computer, just plug into OBD-II and go.
+> **Tesla Full Self-Driving (FSD) unlock for Flipper Zero.** One-button activation for HW3, HW4, and Legacy HW1/HW2 Model S/X. FSD v14 ready. Bypasses the "Traffic Light and Stop Sign Control" regional gate. Includes nag killer, ISA speed chime suppression, OTA guard, battery preconditioning trigger, and a live BMS dashboard. Total hardware cost: Flipper Zero + Electronic Cats CAN Bus Add-On + OBD-II cable — or build the $14 ESP32 port from [PR #6](https://github.com/hypery11/flipper-tesla-fsd/pull/6) instead.
 
 <p align="center">
-  <img src="screenshots/main_menu.png" alt="Main Menu" width="256">&nbsp;&nbsp;&nbsp;
-  <img src="screenshots/fsd_running.png" alt="FSD Running" width="256">
+  <img src="screenshots/main_menu.png" alt="Flipper Zero Tesla FSD main menu" width="256">&nbsp;&nbsp;&nbsp;
+  <img src="screenshots/fsd_running.png" alt="Tesla FSD unlock running on Flipper Zero" width="256">
+</p>
+
+<p align="center">
+  <a href="https://star-history.com/#hypery11/flipper-tesla-fsd&Date">
+    <img src="https://api.star-history.com/svg?repos=hypery11/flipper-tesla-fsd&type=Date" alt="Star history" width="600">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/hypery11/flipper-tesla-fsd/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=hypery11/flipper-tesla-fsd" alt="Contributors">
+  </a>
 </p>
 
 ---
