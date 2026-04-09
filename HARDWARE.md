@@ -131,9 +131,11 @@ support them, but a few that have been confirmed by community testers:
 
 - Joy-IT SBC-CAN01 (MCP2515) — Europe-friendly source for the Flipper path
 - Waveshare RS485-CAN-HAT (MCP2515) — works with Flipper after re-wiring jumpers
-- Adafruit RP2040 CAN Bus Feather — out of scope for this app, but the
-  upstream [CanFeather](https://github.com/Starmixcraft/tesla-fsd-can-mod)
-  project targets it directly
+- Adafruit RP2040 CAN Bus Feather / Feather M4 CAN — out of scope for this
+  app, but the upstream CanFeather project targets it directly. Original
+  upstream (`Starmixcraft/tesla-fsd-can-mod` on GitLab) has been removed;
+  a working mirror lives at
+  [Karolynaz/waymo-fsd-can-mod](https://github.com/Karolynaz/waymo-fsd-can-mod).
 
 If you get a non-listed board working, please open an issue or a PR with
 the pin map and we'll add it to this table.

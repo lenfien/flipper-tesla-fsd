@@ -7,7 +7,6 @@
 [![GitHub release](https://img.shields.io/github/v/release/hypery11/flipper-tesla-fsd?style=flat-square)](https://github.com/hypery11/flipper-tesla-fsd/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue?style=flat-square)](LICENSE)
 [![Build](https://img.shields.io/badge/build-ufbt-brightgreen?style=flat-square)](https://github.com/flipperdevices/flipperzero-ufbt)
-[![Featured on FSD CAN Mod Hub](https://img.shields.io/badge/featured%20on-FSD%20CAN%20Mod%20Hub-orange?style=flat-square)](https://fsdcanmod.com/project/hypery11-flipper-zero)
 
 Unlock Tesla FSD on your Flipper Zero. No subscription, no computer, just plug into OBD-II and go.
 
@@ -158,7 +157,7 @@ If your car is listed and you've tested, please leave a thumbs-up on the relevan
 
 Older Model S/X vehicles (2016-2019) use a Mobileye-based architecture with different CAN IDs. The autopilot control frame is on `0x3EE` (1006) instead of `0x3FD` (1021), and the bit layout differs.
 
-The logic is already documented (see [CanFeather LegacyHandler](https://gitlab.com/Starmixcraft/tesla-fsd-can-mod)), but we need someone with a HW1/HW2 car to validate it before we ship.
+The logic is documented in the [Karolynaz/waymo-fsd-can-mod](https://github.com/Karolynaz/waymo-fsd-can-mod) CanFeather mirror (the original `Starmixcraft/tesla-fsd-can-mod` GitLab upstream has since been removed). We need someone with a HW1/HW2 car to validate it before we ship.
 
 **If you have a 2016-2019 Model S/X with FSD and want to help:**
 
@@ -210,14 +209,14 @@ Yes. Flipper has no built-in CAN. You need the Electronic Cats board or any MCP2
 | ESP32 port — PR [#6](https://github.com/hypery11/flipper-tesla-fsd/pull/6) by @elonleo | Full ESP32 port of this project's CAN logic with a built-in WiFi web dashboard. ~$14 alternative to Flipper Zero + Add-On. | M5Stack ATOM Lite + ATOMIC CAN, Waveshare ESP32-S3-RS485-CAN |
 | [tumik/S3XY-candump](https://github.com/tumik/S3XY-candump) | Python tool to dump Tesla CAN bus over WiFi using an enhauto S3XY Commander as a Panda-protocol bridge | Commander dongle |
 | [dzid26/ESP32-DualCAN](https://github.com/dzid26/ESP32-DualCAN) | "Dorky Commander" — open-source hardware alternative to the enhauto S3XY Commander | ESP32 + dual CAN |
-| [Starmixcraft/tesla-fsd-can-mod](https://gitlab.com/Starmixcraft/tesla-fsd-can-mod) | Original CanFeather FSD CAN research — the source we ported from | Adafruit RP2040 CAN |
+| [Karolynaz/waymo-fsd-can-mod](https://github.com/Karolynaz/waymo-fsd-can-mod) | Mirror of the original `Starmixcraft/tesla-fsd-can-mod` CanFeather research — the source we ported from. The original GitLab upstream was taken down; this is the currently-reachable copy. | Adafruit Feather M4 CAN |
 | [tuncasoftbildik/tesla-can-mod](https://github.com/tuncasoftbildik/tesla-can-mod) | Arduino reference implementation with working frame templates for several non-FSD features | Arduino + MCP2515 |
 
 ## Credits
 
 - [commaai/opendbc](https://github.com/commaai/opendbc) — Tesla CAN signal database
 - [ElectronicCats/flipper-MCP2515-CANBUS](https://github.com/ElectronicCats/flipper-MCP2515-CANBUS) — MCP2515 driver for Flipper
-- [Starmixcraft/tesla-fsd-can-mod](https://gitlab.com/Starmixcraft/tesla-fsd-can-mod) — original CanFeather FSD research
+- `Starmixcraft/tesla-fsd-can-mod` — original CanFeather FSD research (the GitLab repo has since been removed; mirror at [Karolynaz/waymo-fsd-can-mod](https://github.com/Karolynaz/waymo-fsd-can-mod))
 - mikegapinski/tesla-can-explorer — 40k Tesla CAN signal dictionary extracted from `libQtCarVAPI.so`
 - talas9/tesla_can_signals — per-model wire format reference
 
