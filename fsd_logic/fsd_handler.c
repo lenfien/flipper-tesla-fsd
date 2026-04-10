@@ -274,6 +274,76 @@ void fsd_build_park_frame(CANFRAME* frame) {
     frame->buffer[2] = 0x01;
 }
 
+// --- DI_speed (0x257) parser: vehicle speed + UI speed ---
+// opendbc tesla_model3_party.dbc:
+//   DI_vehicleSpeed : 12|12@1+ (0.08,-40) kph
+//   DI_uiSpeed      : 24|8@1+  (1,0)
+
+void fsd_handle_di_speed(FSDState* state, const CANFRAME* frame) {
+    if(frame->data_lenght < 4) return;
+    // DI_vehicleSpeed: 12-bit little-endian starting at bit 12
+    uint16_t raw = ((uint16_t)(frame->buffer[2] & 0x0F) << 8) | frame->buffer[1];
+    raw >>= 4; // shift down (bit 12 start in LE = byte1 upper nibble + byte2 lower)
+    // Actually: bit12|12@1+ means start_bit=12, length=12, little-endian
+    // byte1 bits[7:4] = bits 12-15, byte2 bits[7:0] = bits 16-23
+    // Re-extract properly:
+    raw = (((uint16_t)frame->buffer[2]) << 4) | (frame->buffer[1] >> 4);
+    state->vehicle_speed_kph = (float)raw * 0.08f - 40.0f;
+    if(state->vehicle_speed_kph < 0) state->vehicle_speed_kph = 0;
+
+    // DI_uiSpeed: bit24|8 = byte 3
+    state->ui_speed = frame->buffer[3];
+    state->speed_seen = true;
+}
+
+// --- EPAS3S_currentTuneMode from 0x370 ---
+// opendbc: EPAS3S_currentTuneMode : 7|3@0+ (big-endian, startBit=7, len=3)
+// Means: MSB at bit 7 (byte0 bit7), 3 bits → byte0 bits [7:5]
+// Also: EPAS3S_torsionBarTorque : 19|12@0+ (0.01,-20.5) Nm
+// MSB at bit 19 (byte2 bit3), 12 bits → byte2[3:0] + byte1[7:0] ... complex big-endian
+
+void fsd_handle_epas_steering_mode(FSDState* state, const CANFRAME* frame) {
+    if(frame->data_lenght < 3) return;
+    // currentTuneMode: startBit=7, len=3, big-endian
+    // In Motorola (big-endian) notation: MSB at bit 7 = byte0 bit7
+    // 3 bits: byte0 bits [7:5]
+    state->steering_tune_mode = (frame->buffer[0] >> 5) & 0x07;
+
+    // torsionBarTorque: startBit=19, len=12, big-endian, factor=0.01, offset=-20.5
+    // MSB at bit 19 = byte2 bit3. 12 bits big-endian:
+    // byte2[3:0] (4 bits) + byte1[7:0] (8 bits) = 12 bits? No...
+    // Actually big-endian startBit=19 means: byte=19/8=2, bit=19%8=3
+    // So MSB is at byte2 bit3. 12 bits going MSB→LSB in big-endian:
+    // byte2[3:0] (4 bits high), byte3[7:4] (4 bits mid), byte3[3:0] (4 bits low)?
+    // Standard Motorola byte order for 12-bit: spans byte2 and byte3
+    // Let's use a simpler extraction:
+    uint16_t raw_torque = ((uint16_t)(frame->buffer[2] & 0x0F) << 8) | frame->buffer[3];
+    state->torsion_bar_torque_nm = (float)raw_torque * 0.01f - 20.5f;
+}
+
+// --- ESP_status (0x145) parser ---
+// opendbc: ESP_driverBrakeApply : 29|2@1+ (little-endian)
+// bit 29 = byte3 bit5, 2 bits → byte3 bits [6:5]
+
+void fsd_handle_esp_status(FSDState* state, const CANFRAME* frame) {
+    if(frame->data_lenght < 4) return;
+    uint8_t brake = (frame->buffer[3] >> 5) & 0x03;
+    state->driver_brake_applied = (brake != 0);
+}
+
+// --- GTW_epasControl (0x101) steering tune WRITE ---
+// tuncasoftbildik: GTW_epasTuneRequest startBit=2, 3 bits, little-endian
+// Values: 1=COMFORT, 2=STANDARD, 3=SPORT
+// NOTE: Chassis CAN only — not on OBD-II Party CAN
+
+void fsd_build_steering_tune_frame(CANFRAME* frame, uint8_t mode) {
+    memset(frame, 0, sizeof(CANFRAME));
+    frame->canId = CAN_ID_GTW_EPAS_CTRL;
+    frame->data_lenght = 8;
+    // GTW_epasTuneRequest: startBit 2, 3 bits LE → byte0 bits [4:2]
+    frame->buffer[0] = (mode & 0x07) << 2;
+}
+
 // --- Nag killer (CAN 880 counter+1 echo) ---
 
 bool fsd_handle_nag_killer(FSDState* state, const CANFRAME* frame, CANFRAME* out) {

@@ -54,6 +54,14 @@ static void rear_fog_changed(VariableItem* item) {
     app->extra_rear_fog = (idx == 1);
 }
 
+static const char* const steering_text[] = {"--", "Comfort", "Standard", "Sport"};
+static void steering_changed(VariableItem* item) {
+    TeslaFSDApp* app = variable_item_get_context(item);
+    uint8_t idx = variable_item_get_current_value_index(item);
+    variable_item_set_current_value_text(item, steering_text[idx]);
+    app->extra_steering_mode = idx; // 0=no change, 1=comfort, 2=standard, 3=sport
+}
+
 void tesla_fsd_scene_extras_on_enter(void* context) {
     TeslaFSDApp* app = context;
     VariableItemList* list = app->var_item_list;
@@ -80,6 +88,11 @@ void tesla_fsd_scene_extras_on_enter(void* context) {
     item = variable_item_list_add(list, "Rear Fog Light", 2, rear_fog_changed, app);
     variable_item_set_current_value_index(item, app->extra_rear_fog ? 1 : 0);
     variable_item_set_current_value_text(item, toggle_text[app->extra_rear_fog ? 1 : 0]);
+
+    // Steering tune — requires Chassis CAN tap (not OBD-II Party CAN)
+    item = variable_item_list_add(list, "Steering [ChassisCAN]", 4, steering_changed, app);
+    variable_item_set_current_value_index(item, app->extra_steering_mode);
+    variable_item_set_current_value_text(item, steering_text[app->extra_steering_mode]);
 
     view_dispatcher_switch_to_view(app->view_dispatcher, TeslaFSDViewVarItemList);
 }
