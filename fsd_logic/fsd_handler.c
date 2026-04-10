@@ -387,6 +387,129 @@ void fsd_handle_das_settings(FSDState* state, const CANFRAME* frame) {
     state->das_autosteer_on = (frame->buffer[4] >> 6) & 0x01;
 }
 
+// --- SCCM_leftStalk (0x249) builders — Party CAN, 3 bytes ---
+// Frame layout:
+//   byte0: CRC = (0x49 + 0x02 + byte1 + byte2) & 0xFF
+//   byte1[3:0]: counter (4-bit, 0-15)
+//   byte1[5:4]: SCCM_highBeamStalkStatus (0=IDLE 1=PULL 2=PUSH)
+//   byte1[7:6]: SCCM_washWipeButtonStatus (0=NONE 1=1ST 2=2ND)
+//   byte2[2:0]: SCCM_turnIndicatorStalkStatus (0=IDLE 1=UP1 2=UP2 3=DN1 4=DN2)
+
+static void sccm_left_calc_crc(CANFRAME* frame) {
+    frame->buffer[0] = ((CAN_ID_SCCM_LSTALK & 0xFF) +
+                         ((CAN_ID_SCCM_LSTALK >> 8) & 0xFF) +
+                         frame->buffer[1] + frame->buffer[2]) & 0xFF;
+}
+
+void fsd_build_highbeam_flash(CANFRAME* frame, uint8_t counter, bool flash_on) {
+    memset(frame, 0, sizeof(CANFRAME));
+    frame->canId = CAN_ID_SCCM_LSTALK;
+    frame->data_lenght = 3;
+    frame->buffer[1] = (counter & 0x0F);
+    if(flash_on) {
+        frame->buffer[1] |= (1 << 4); // highBeamStalkStatus = PULL
+    }
+    // byte2 = 0 (turn idle, reserved 0)
+    sccm_left_calc_crc(frame);
+}
+
+void fsd_build_turn_signal(CANFRAME* frame, uint8_t counter, uint8_t direction) {
+    memset(frame, 0, sizeof(CANFRAME));
+    frame->canId = CAN_ID_SCCM_LSTALK;
+    frame->data_lenght = 3;
+    frame->buffer[1] = (counter & 0x0F);
+    frame->buffer[2] = (direction & 0x07); // 1=UP1(right), 3=DN1(left)
+    sccm_left_calc_crc(frame);
+}
+
+void fsd_build_wiper_wash(CANFRAME* frame, uint8_t counter) {
+    memset(frame, 0, sizeof(CANFRAME));
+    frame->canId = CAN_ID_SCCM_LSTALK;
+    frame->data_lenght = 3;
+    frame->buffer[1] = (counter & 0x0F) | (1 << 6); // washWipe = 1ST_DETENT
+    sccm_left_calc_crc(frame);
+}
+
+// --- DAS_control (0x2B9) parser: ACC state + set speed ---
+// DAS_setSpeed: bit0|12 LE, factor 0.1, unit kph (4095=SNA)
+// DAS_accState: bit12|4 LE (0=cancel,3=hold,4=ACC_ON,9=pause,13=cancel_silent)
+
+void fsd_handle_das_control(FSDState* state, const CANFRAME* frame) {
+    if(frame->data_lenght < 3) return;
+    uint16_t raw_spd = ((uint16_t)(frame->buffer[1] & 0x0F) << 8) | frame->buffer[0];
+    if(raw_spd != 0x0FFF) // SNA
+        state->das_set_speed_kph = raw_spd * 0.1f;
+    state->das_acc_state = (frame->buffer[1] >> 4) & 0x0F;
+}
+
+// --- DI_state (0x286) parser: cruise, gear, park brake, digital speed ---
+// DI_cruiseState: bit12|3 LE → byte1 bits[6:4] (from DI_state on Party CAN)
+// DI_digitalSpeed: bit15|9 LE → byte1[7] + byte2[7:0], factor 0.5
+// DI_parkBrakeState: bit32|4 LE → byte4 bits[3:0]
+// DI_autoparkState: bit25|4 LE → byte3 bits[4:1]
+
+void fsd_handle_di_state(FSDState* state, const CANFRAME* frame) {
+    if(frame->data_lenght < 5) return;
+    state->di_cruise_state = (frame->buffer[1] >> 4) & 0x07;
+    // digitalSpeed: 9-bit starting at bit 15
+    uint16_t raw_ds = ((uint16_t)frame->buffer[2] << 1) | ((frame->buffer[1] >> 7) & 0x01);
+    state->di_digital_speed = (uint8_t)(raw_ds >> 1); // approximate
+    state->di_park_brake_state = frame->buffer[4] & 0x0F;
+    state->di_autopark_state = (frame->buffer[3] >> 1) & 0x0F;
+}
+
+// --- DI_torque (0x108) parser ---
+// opendbc: DI_torque1 : 0|13@1+ (0.25,-750) Nm
+
+void fsd_handle_di_torque(FSDState* state, const CANFRAME* frame) {
+    if(frame->data_lenght < 2) return;
+    uint16_t raw = ((uint16_t)(frame->buffer[1] & 0x1F) << 8) | frame->buffer[0];
+    state->di_torque_nm = raw * 0.25f - 750.0f;
+    state->di_torque_seen = true;
+}
+
+// --- UI_warning (0x311) parser ---
+// buckleStatus: bit13|1 big-endian → byte1 bit5
+// scrollWheelPressed: bit21|1 big-endian → byte2 bit5
+// leftBlinkerOn: bit22|1 big-endian → byte2 bit6
+// rightBlinkerOn: bit23|1 big-endian → byte2 bit7
+// anyDoorOpen: bit28|1 big-endian → byte3 bit4
+// highBeam: bit50|1 big-endian → byte6 bit2
+
+void fsd_handle_ui_warning(FSDState* state, const CANFRAME* frame) {
+    if(frame->data_lenght < 7) return;
+    state->ui_buckle_status = (frame->buffer[1] >> 5) & 0x01;
+    state->ui_left_blinker = (frame->buffer[2] >> 6) & 0x01;
+    state->ui_right_blinker = (frame->buffer[2] >> 7) & 0x01;
+    state->ui_any_door_open = (frame->buffer[3] >> 4) & 0x01;
+    state->ui_high_beam = (frame->buffer[6] >> 2) & 0x01;
+    state->ui_warning_seen = true;
+}
+
+// --- SCCM_steeringAngleSensor (0x129) parser ---
+// opendbc doesn't have the main angle in Model 3 DBC but it's likely
+// similar to legacy: 14-bit signed value, factor 0.1 deg
+// For now parse the raw bytes — exact signal layout needs verification
+
+void fsd_handle_steering_angle(FSDState* state, const CANFRAME* frame) {
+    if(frame->data_lenght < 4) return;
+    // Common Tesla steering angle: 16-bit signed LE at byte0-1, factor 0.1
+    int16_t raw = (int16_t)(((uint16_t)frame->buffer[1] << 8) | frame->buffer[0]);
+    state->steering_angle_deg = raw * 0.1f;
+}
+
+// --- DAS_steeringControl (0x488) parser ---
+// DAS_steeringControlType: bit23|2 big-endian → byte2 bits[7:6]
+// DAS_steeringAngleRequest: bit6|15 big-endian, factor 0.1, offset -1638.35
+
+void fsd_handle_das_steering(FSDState* state, const CANFRAME* frame) {
+    if(frame->data_lenght < 3) return;
+    state->das_steer_type = (frame->buffer[2] >> 6) & 0x03;
+    // angle: 15-bit big-endian starting at bit 6
+    uint16_t raw = ((uint16_t)(frame->buffer[0] & 0x7F) << 8) | frame->buffer[1];
+    state->das_steer_angle_req = raw * 0.1f - 1638.35f;
+}
+
 // --- Nag killer (CAN 880 counter+1 echo) ---
 
 bool fsd_handle_nag_killer(FSDState* state, const CANFRAME* frame, CANFRAME* out) {
