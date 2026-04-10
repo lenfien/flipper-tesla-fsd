@@ -28,6 +28,15 @@
 #define CAN_ID_DAS_STATUS     0x39B  // 923  - DAS_status (AP state, nag, lane change, blind spot)
 #define CAN_ID_DAS_STATUS2    0x389  // 905  - DAS_status2 (ACC report, driver interaction)
 #define CAN_ID_DAS_SETTINGS   0x293  // 659  - DAS_settings (autosteer enable, steering weight, etc.)
+#define CAN_ID_SCCM_LSTALK   0x249  // 585  - SCCM_leftStalk (high beam, turn signal, wiper wash — Party CAN, 3 bytes)
+#define CAN_ID_DI_TORQUE     0x108  // 264  - DI_torque (motor torque/power — Party CAN)
+#define CAN_ID_DAS_CONTROL   0x2B9  // 697  - DAS_control (ACC state, set speed — Party CAN)
+#define CAN_ID_DI_STATE      0x286  // 646  - DI_state (cruise state, gear, park brake — Party CAN)
+#define CAN_ID_UI_WARNING    0x311  // 785  - UI_warning (blinker, door, buckle, wiper — Party CAN)
+#define CAN_ID_ESP_WHEELSPD  0x175  // 373  - ESP_wheelSpeeds (4 wheel speeds — Party CAN)
+#define CAN_ID_STEER_ANGLE   0x129  // 297  - SCCM_steeringAngleSensor (steering angle — Party CAN)
+#define CAN_ID_DAS_STEER     0x488  // 1160 - DAS_steeringControl (DAS steering request — Party CAN)
+#define CAN_ID_APS_EACMON    0x27D  // 637  - APS_eacMonitor (steering permission — Party CAN)
 
 typedef enum {
     TeslaHW_Unknown = 0,
@@ -96,11 +105,44 @@ typedef struct {
     bool das_autosteer_on;       // from 0x293 DAS_autosteerEnabled readback
     bool das_seen;               // true once we've parsed at least one 0x39B
 
+    // --- DAS_control (0x2B9) — ACC / longitudinal state ---
+    uint8_t das_acc_state;       // 0-15 (0=cancel, 3=hold, 4=ACC_ON, 9=pause)
+    float das_set_speed_kph;     // set cruise speed (0.1 kph resolution)
+
+    // --- DI_state (0x286) — cruise, gear, park brake ---
+    uint8_t di_cruise_state;     // 0-7 (0=unavail 1=standby 2=enabled 3=standstill)
+    uint8_t di_park_brake_state; // 0-15
+    uint8_t di_autopark_state;   // 0-15
+    uint8_t di_digital_speed;    // 0.5 kph resolution (9-bit)
+
+    // --- DI_torque (0x108) — motor power ---
+    float di_torque_nm;          // drive motor torque
+    bool di_torque_seen;
+
+    // --- UI_warning (0x311) — dashboard indicators ---
+    bool ui_left_blinker;
+    bool ui_right_blinker;
+    bool ui_any_door_open;
+    bool ui_buckle_status;       // seatbelt
+    bool ui_high_beam;
+    bool ui_warning_seen;
+
+    // --- steering angle (0x129) ---
+    float steering_angle_deg;
+
+    // --- DAS_steeringControl (0x488) ---
+    float das_steer_angle_req;   // DAS requested angle
+    uint8_t das_steer_type;      // 0=none 1=angle_ctrl 2=LKA 3=ELK
+
     // --- extras: write toggles (BETA, Service mode only) ---
     bool extra_hazard_lights;
     bool extra_wiper_off;
     bool extra_park_inject;      // inject a PARK stalk press
     uint8_t extra_steering_mode; // 0=no change, 1=comfort 2=standard 3=sport (GTW_epasTuneRequest)
+    bool extra_highbeam_strobe;   // rapid PULL/IDLE toggle on SCCM_leftStalk
+    bool extra_turn_left;         // inject left turn signal
+    bool extra_turn_right;        // inject right turn signal
+    bool extra_wiper_wash;        // inject wiper wash button press
 } FSDState;
 
 void fsd_state_init(FSDState* state, TeslaHWVersion hw);
@@ -199,3 +241,40 @@ void fsd_handle_das_status2(FSDState* state, const CANFRAME* frame);
 /** Parse DAS_settings (0x293) — readback of autosteer enabled state.
  *  Source: opendbc tesla_model3_party.dbc. */
 void fsd_handle_das_settings(FSDState* state, const CANFRAME* frame);
+
+/** Build a SCCM_leftStalk (0x249) frame for high beam strobe.
+ *  SCCM_highBeamStalkStatus (bit12|2) = 1 (PULL) for flash.
+ *  3-byte frame, CRC in byte0, counter in byte1[3:0].
+ *  CRC = (0x49 + 0x02 + data[1] + data[2]) & 0xFF.
+ *  Source: opendbc tesla_model3_party.dbc. */
+void fsd_build_highbeam_flash(CANFRAME* frame, uint8_t counter, bool flash_on);
+
+/** Build a SCCM_leftStalk (0x249) frame for turn signal injection.
+ *  SCCM_turnIndicatorStalkStatus (bit16|3): 1=UP_1(right), 3=DOWN_1(left).
+ *  Source: opendbc tesla_model3_party.dbc. */
+void fsd_build_turn_signal(CANFRAME* frame, uint8_t counter, uint8_t direction);
+
+/** Build a SCCM_leftStalk (0x249) frame for wiper wash button press.
+ *  SCCM_washWipeButtonStatus (bit14|2): 1=1ST_DETENT, 2=2ND_DETENT.
+ *  Source: opendbc tesla_model3_party.dbc. */
+void fsd_build_wiper_wash(CANFRAME* frame, uint8_t counter);
+
+// --- Remaining Party CAN parsers ---
+
+/** Parse DAS_control (0x2B9) — ACC state + set speed. */
+void fsd_handle_das_control(FSDState* state, const CANFRAME* frame);
+
+/** Parse DI_state (0x286) — cruise state, gear, park brake, digital speed. */
+void fsd_handle_di_state(FSDState* state, const CANFRAME* frame);
+
+/** Parse DI_torque (0x108) — motor torque. */
+void fsd_handle_di_torque(FSDState* state, const CANFRAME* frame);
+
+/** Parse UI_warning (0x311) — blinker, door, buckle, high beam status. */
+void fsd_handle_ui_warning(FSDState* state, const CANFRAME* frame);
+
+/** Parse SCCM_steeringAngleSensor (0x129) — steering wheel angle. */
+void fsd_handle_steering_angle(FSDState* state, const CANFRAME* frame);
+
+/** Parse DAS_steeringControl (0x488) — DAS steering request type + angle. */
+void fsd_handle_das_steering(FSDState* state, const CANFRAME* frame);

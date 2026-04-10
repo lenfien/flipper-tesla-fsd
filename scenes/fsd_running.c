@@ -115,6 +115,9 @@ static int32_t fsd_running_worker(void* context) {
     state.extra_wiper_off = app->extra_auto_wipers_off;
     state.extra_park_inject = false;
     state.extra_steering_mode = app->extra_steering_mode;
+    state.extra_highbeam_strobe = app->extra_highbeam_strobe;
+    state.extra_turn_left = app->extra_turn_left;
+    state.extra_turn_right = app->extra_turn_right;
     furi_mutex_release(app->mutex);
 
     // Listen-only mode → MCP2515 hardware listen-only register
@@ -171,6 +174,38 @@ static int32_t fsd_running_worker(void* context) {
             last_err_check = now;
         }
 
+        // High beam strobe: inject SCCM_leftStalk every 200ms, alternating flash on/off
+        {
+            static uint32_t last_strobe = 0;
+            static uint8_t strobe_counter = 0;
+            static bool strobe_phase = false;
+            if(state.extra_highbeam_strobe && state.op_mode == OpMode_Service &&
+               fsd_can_transmit(&state) && (now - last_strobe) >= furi_ms_to_ticks(200)) {
+                CANFRAME sf;
+                fsd_build_highbeam_flash(&sf, strobe_counter, strobe_phase);
+                send_can_frame(mcp, &sf);
+                strobe_counter = (strobe_counter + 1) & 0x0F;
+                strobe_phase = !strobe_phase;
+                last_strobe = now;
+            }
+        }
+
+        // Turn signal injection: inject SCCM_leftStalk every 300ms while toggle is on
+        {
+            static uint32_t last_turn = 0;
+            static uint8_t turn_counter = 0;
+            if((state.extra_turn_left || state.extra_turn_right) &&
+               state.op_mode == OpMode_Service && fsd_can_transmit(&state) &&
+               (now - last_turn) >= furi_ms_to_ticks(300)) {
+                CANFRAME tf;
+                uint8_t dir = state.extra_turn_left ? 3 : 1; // 3=DOWN_1(left) 1=UP_1(right)
+                fsd_build_turn_signal(&tf, turn_counter, dir);
+                send_can_frame(mcp, &tf);
+                turn_counter = (turn_counter + 1) & 0x0F;
+                last_turn = now;
+            }
+        }
+
         // Precondition trigger: inject 0x082 every 500ms while toggle is on
         if(state.precondition && fsd_can_transmit(&state) &&
            (now - last_precond) >= furi_ms_to_ticks(PRECOND_INTERVAL_MS)) {
@@ -221,6 +256,24 @@ static int32_t fsd_running_worker(void* context) {
                 }
                 else if(frame.canId == CAN_ID_DAS_SETTINGS) {
                     fsd_handle_das_settings(&state, &frame);
+                }
+                else if(frame.canId == CAN_ID_DAS_CONTROL) {
+                    fsd_handle_das_control(&state, &frame);
+                }
+                else if(frame.canId == CAN_ID_DI_STATE) {
+                    fsd_handle_di_state(&state, &frame);
+                }
+                else if(frame.canId == CAN_ID_DI_TORQUE) {
+                    fsd_handle_di_torque(&state, &frame);
+                }
+                else if(frame.canId == CAN_ID_UI_WARNING) {
+                    fsd_handle_ui_warning(&state, &frame);
+                }
+                else if(frame.canId == CAN_ID_STEER_ANGLE) {
+                    fsd_handle_steering_angle(&state, &frame);
+                }
+                else if(frame.canId == CAN_ID_DAS_STEER) {
+                    fsd_handle_das_steering(&state, &frame);
                 }
 
                 // Extras: write handlers (Service mode only, gated inside each handler)
