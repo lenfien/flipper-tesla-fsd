@@ -113,7 +113,8 @@ static int32_t fsd_running_worker(void* context) {
     // extras
     state.extra_hazard_lights = app->extra_hazard_lights;
     state.extra_wiper_off = app->extra_auto_wipers_off;
-    state.extra_park_inject = false; // one-shot, not persistent
+    state.extra_park_inject = false;
+    state.extra_steering_mode = app->extra_steering_mode;
     furi_mutex_release(app->mutex);
 
     // Listen-only mode → MCP2515 hardware listen-only register
@@ -206,6 +207,12 @@ static int32_t fsd_running_worker(void* context) {
                 else if(frame.canId == CAN_ID_VCRIGHT_STATUS) {
                     fsd_handle_vcright_status(&state, &frame);
                 }
+                else if(frame.canId == CAN_ID_DI_SPEED) {
+                    fsd_handle_di_speed(&state, &frame);
+                }
+                else if(frame.canId == CAN_ID_ESP_STATUS) {
+                    fsd_handle_esp_status(&state, &frame);
+                }
 
                 // Extras: write handlers (Service mode only, gated inside each handler)
                 if(frame.canId == CAN_ID_VCFRONT_LIGHT) {
@@ -217,10 +224,15 @@ static int32_t fsd_running_worker(void* context) {
                     }
                 }
 
-                if(frame.canId == CAN_ID_EPAS_STATUS && state.nag_killer) {
-                    CANFRAME echo;
-                    if(fsd_handle_nag_killer(&state, &frame, &echo) && tx_allowed) {
-                        send_can_frame(mcp, &echo);
+                if(frame.canId == CAN_ID_EPAS_STATUS) {
+                    // Always parse steering mode from 0x370 (read-only)
+                    fsd_handle_epas_steering_mode(&state, &frame);
+                    // Nag killer TX (if enabled)
+                    if(state.nag_killer) {
+                        CANFRAME echo;
+                        if(fsd_handle_nag_killer(&state, &frame, &echo) && tx_allowed) {
+                            send_can_frame(mcp, &echo);
+                        }
                     }
                 } else if(frame.canId == CAN_ID_STW_ACTN_RQ && state.hw_version == TeslaHW_Legacy) {
                     fsd_handle_legacy_stalk(&state, &frame);

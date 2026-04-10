@@ -22,6 +22,9 @@
 #define CAN_ID_SCCM_RSTALK   0x229  // 553  - SCCM_rightStalk (gear shift, park button)
 #define CAN_ID_DI_SYS_STATUS  0x118  // 280  - DI_systemStatus (track mode, traction ctrl)
 #define CAN_ID_VCRIGHT_STATUS 0x343  // 835  - VCRIGHT_status (rear defrost state)
+#define CAN_ID_DI_SPEED       0x257  // 599  - DI_speed (vehicle speed, checksummed)
+#define CAN_ID_ESP_STATUS     0x145  // 325  - ESP_status (brake, stability)
+#define CAN_ID_GTW_EPAS_CTRL  0x101  // 257  - GTW_epasControl (steering tune WRITE, Chassis CAN)
 
 typedef enum {
     TeslaHW_Unknown = 0,
@@ -68,14 +71,21 @@ typedef struct {
     bool precondition;
 
     // --- extras: read-only vehicle state (parsed from bus) ---
-    uint8_t track_mode_state;    // 0=unavail 1=avail 2=on (from 0x118 DI_trackModeState)
-    uint8_t traction_ctrl_mode;  // 0..5 (from 0x118 DI_tractionControlMode)
-    uint8_t rear_defrost_state;  // 0=sna 1=on 2=off (from 0x343 VCRIGHT_rearDefrostState)
+    uint8_t track_mode_state;    // 0=unavail 1=avail 2=on (from 0x118)
+    uint8_t traction_ctrl_mode;  // 0..7 (from 0x118)
+    uint8_t rear_defrost_state;  // 0=sna 1=on 2=off (from 0x343)
+    float vehicle_speed_kph;     // from 0x257 DI_vehicleSpeed (12-bit, 0.08 factor, -40 offset)
+    uint8_t ui_speed;            // from 0x257 DI_uiSpeed (8-bit, display value)
+    uint8_t steering_tune_mode;  // from 0x370 EPAS3S_currentTuneMode (0-6)
+    float torsion_bar_torque_nm; // from 0x370 EPAS3S_torsionBarTorque
+    bool driver_brake_applied;   // from 0x145 ESP_driverBrakeApply
+    bool speed_seen;             // true once we've parsed at least one 0x257
 
     // --- extras: write toggles (BETA, Service mode only) ---
     bool extra_hazard_lights;
     bool extra_wiper_off;
     bool extra_park_inject;      // inject a PARK stalk press
+    uint8_t extra_steering_mode; // 0=no change, 1=comfort 2=standard 3=sport (GTW_epasTuneRequest)
 } FSDState;
 
 void fsd_state_init(FSDState* state, TeslaHWVersion hw);
@@ -137,3 +147,27 @@ bool fsd_handle_wiper_off(const FSDState* state, CANFRAME* frame);
  *  SCCM_parkButtonStatus (byte2 bits 1:0) = 1 (PRESSED).
  *  Source: opendbc tesla_model3_vehicle.dbc line 126. */
 void fsd_build_park_frame(CANFRAME* frame);
+
+/** Parse DI_speed (0x257) — vehicle speed + UI speed.
+ *  DI_vehicleSpeed: bit12|12, factor 0.08, offset -40, unit kph.
+ *  DI_uiSpeed: bit24|8.
+ *  Source: opendbc tesla_model3_party.dbc. */
+void fsd_handle_di_speed(FSDState* state, const CANFRAME* frame);
+
+/** Parse EPAS3S_currentTuneMode from the existing 0x370 frame.
+ *  bit7|3 big-endian (0=fail_safe 1=comfort 2=standard 3=sport
+ *  4=rwd_comfort 5=rwd_standard 6=rwd_sport).
+ *  Also parses torsionBarTorque: bit19|12 big-endian, factor 0.01, offset -20.5.
+ *  Source: opendbc tesla_model3_party.dbc. */
+void fsd_handle_epas_steering_mode(FSDState* state, const CANFRAME* frame);
+
+/** Parse ESP_status (0x145) — brake application state.
+ *  ESP_driverBrakeApply: bit29|2.
+ *  Source: opendbc tesla_model3_party.dbc. */
+void fsd_handle_esp_status(FSDState* state, const CANFRAME* frame);
+
+/** Build a GTW_epasControl (0x101) frame to set steering tune mode.
+ *  GTW_epasTuneRequest: startBit 2, 3 bits (1=comfort 2=standard 3=sport).
+ *  Source: tuncasoftbildik TESLA_CAN_STEERING_REFERENCE.md.
+ *  NOTE: This is on CHASSIS CAN, not Party CAN — requires different tap. */
+void fsd_build_steering_tune_frame(CANFRAME* frame, uint8_t mode);
