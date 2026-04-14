@@ -120,7 +120,7 @@ struct FSDHandler {
             // index 0: Main FSD control message
             if (index == 0) {
                 // 计算限速
-                {
+                if (!m_use_hw4_code) {
                     m_speed_offset_raw = frame.data[3];
 
                     // 偏移模式是固定速度
@@ -168,12 +168,25 @@ struct FSDHandler {
                 if (m_use_hw4_code)
                     setBit(frame, 60, true); // Additional HW4-specific FSD bit
 
+                // 打开紧急车辆检测
+                setBit(frame, 59, true);
+
                 // set profile
                 if (!m_use_hw4_code) {
                     frame.data[6] &= ~0x06;
                     frame.data[6] |= (m_speed_profile << 1);
                 }
 
+                // FSD 停车/停点控制相关开关
+                setBit(frame, 38, true);
+
+                // HOV 相关开关，通常可理解为多人乘员车道/拼车道策略
+                setBit(frame, 3, true);
+
+                // FSD 可视化显示开关
+                setBit(frame, 37, true);
+
+                // m_frame_to_debug[index] = frame;
                 mcp->sendMessage(&frame);
             }
 
@@ -184,16 +197,28 @@ struct FSDHandler {
                 if (m_use_hw4_code)
                     setBit(frame, 47, true); // Extra bit set only on HW4
 
+                // 禁用驾驶室内摄像头
+                setBit(frame, 43, false);
+
+                // 显示车到图
+                setBit(frame, 45, true);
+
+                // 轨道和目标标签
+                setBit(frame, 46, true);
+
+                m_frame_to_debug[index] = frame;
                 mcp->sendMessage(&frame);
             }
 
             // index 2: Speed offset injection
             if (index == 2) {
                 // HW3.SpeedOffset
-                frame.data[0] &= ~(0b11000000);
-                frame.data[1] &= ~(0b00111111);
-                frame.data[0] |= (m_speed_offset & 0x03) << 6;
-                frame.data[1] |= (m_speed_offset >> 2);
+                if (!m_use_hw4_code) {
+                    frame.data[0] &= ~(0b11000000);
+                    frame.data[1] &= ~(0b00111111);
+                    frame.data[0] |= (m_speed_offset & 0x03) << 6;
+                    frame.data[1] |= (m_speed_offset >> 2);
+                }
 
                 // HW4 Set profile
                 if (m_use_hw4_code) {
@@ -201,20 +226,55 @@ struct FSDHandler {
                     frame.data[7] |= (m_speed_profile & 0x07) << 4;
                 }
 
+                m_frame_to_debug[index] = frame;
                 mcp->sendMessage(&frame);
             }
 
             if (index == 0 && enablePrint) {
                 Serial.printf(
-                    "FSDHandler: FSDEnable: %d(HW4Code:%s), Follow:%d,Profile:%d,Offset: %d, SpeedLimit:%d,TargetSpeed: %d\n",
+                    "FSDHandler: FSDEnable: %d(HW4Code:%s), Follow:%d,Profile:%d,Offset: %d, SpeedLimit:%d,TargetSpeed: %d, Raw: 0:%s 1:%s 2:%s, index: %d\n",
                     m_is_fsd_enabled,
                     m_use_hw4_code ? "Yes" : "No",
                     m_follow_distance,
                     m_speed_profile,
                     m_speed_offset,
                     m_speed_limit,
-                    m_target_speed);
+                    m_target_speed,
+                    ToString(m_frame_to_debug[0]).c_str(),
+                    ToString(m_frame_to_debug[1]).c_str(),
+                    ToString(m_frame_to_debug[2]).c_str(),
+                    m_index_to_use);
             }
+        }
+
+#define CAN_ID_EPAS_STATUS    0x370  // 880 - EPAS3P_sysStatus (nag killer target)
+        if (frame.can_id == CAN_ID_EPAS_STATUS) {
+            if (frame.can_dlc < 8) return;
+
+            // only act when handsOnLevel == 0 (no hands detected)
+            uint8_t hands_on = (frame.data[4] >> 6) & 0x03;
+            if(hands_on != 0) return;
+            //Serial.printf("1");
+
+            m_frame_to_debug[0] = frame;
+
+            // 0:11 f5  7 bd 20 1b 2e a6
+            // 0:11 f5  7 bd 20 1b 2e a6
+            // 0:11 ff  7 b9 1f 47 23 cc
+            // 0:11 ff  7 b9 1f 47 23 cc
+            // 0:12  b  8 55 20  a 23 3a
+            // 0:12  b  8 55 20  a 23 3a
+            //
+            // if (m_index_use_counter ++ >= 1000) {
+            //     m_index_to_use += 1;
+            //     m_index_use_counter = 0;
+            // }
+            //
+            // for (int i = 0; i < 8; ++i)
+            //     frame.data[i] = m_to_use_data[m_index_to_use % 3][i];
+            //
+            // m_frame_to_debug[0] = frame;
+            // mcp->sendMessage(&frame);
         }
     }
 
@@ -263,7 +323,7 @@ private:
     ToString(const can_frame &frame) {
         std::ostringstream result;
         for (size_t i = 0; i < sizeof(frame.data); ++i)
-            result << std::hex << std::setw(2) << (int) frame.data[i] << " ";
+            result << "0x" << std::hex << (int) frame.data[i] << ",";
         return result.str();
     }
 
@@ -282,12 +342,29 @@ private:
     int m_speed_profile = 1;
 
     bool m_use_hw4_code = false;
+
+    can_frame m_frame_to_debug[3];
+
+    uint8_t m_to_use_data[5][8] = {
+        // 0:11 f5  7 bd 20 1b 2e a6
+        // 0:11 ff  7 b9 1f 47 23 cc
+        // 0:12  b  8 55 20  a 23 3a
+
+        {0x11,0xf6,0x7,0xbe,0x1e,0xae,0x27,0x32 },
+        {0x11,0xf3,0x7,0xb0,0x20,0x37,0x24,0xa9},
+        {0x11, 0xf5, 0x7, 0xbd, 0x20, 0x1b, 0x2e, 0xa6},
+        {0x11, 0xff, 0x7, 0xb9, 0x1f, 0x47, 0x23, 0xcc},
+           {0x12, 0x0b, 0x8, 0x55, 0x20, 0xa,  0x23, 0x3a},
+    };
+
+    uint32_t m_index_to_use = 0;
+    uint32_t m_index_use_counter = 0;
 };
 
 std::unique_ptr<FSDHandler> handler;
 
 void setup() {
-    handler = std::make_unique<HW>();
+    handler = std::make_unique<FSDHandler>();
     delay(1500);
     Serial.begin(115200);
     unsigned long t0 = millis();
