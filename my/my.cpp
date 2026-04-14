@@ -23,269 +23,305 @@ struct FSDHandler {
         m_frame_to_debug_vec_for_0x370.resize(2);
     }
 
-    void HandleMessage(can_frame &frame) {
-        if (frame.can_dlc < 8)
-            return;
+    void
+    Handle_0x399(can_frame &frame) {
+        m_speed_limit = (frame.data[1] & 0x1F) * 5;
+    }
 
-        // 当前挡路限速
-        if (frame.can_id == 0x399) {
-            m_speed_limit = (frame.data[1] & 0x1F) * 5;
-            return;
-        }
+    void Handle_787(can_frame & frame) {
+        frame.data[0] &= static_cast<uint8_t>(~0x03);
+        frame.data[0] |= static_cast<uint8_t>(0x01);
+        frame.data[7] = ComputeVehicleChecksum(frame);
+        mcp->sendMessage(&frame);
+    }
 
-        // 其他配置项
-        if (frame.can_id == 0x3F8) {
-            // 是否跟随导航驾驶已经开启
-            // 用这个来决定是否开启FSD
-            m_is_fsd_enabled = (frame.data[1] & 0b00100000) != 0;
+    void Handle_0x3DF(can_frame & frame) {
+        // 是否跟随导航驾驶已经开启
+        // 用这个来决定是否开启FSD
+        m_is_fsd_enabled = (frame.data[1] & 0b00100000) != 0;
 
-            // 跟随距离设置 1 - 6
-            m_follow_distance = (frame.data[5] & 0b11100000) >> 5;
+        // 跟随距离设置 1 - 6
+        m_follow_distance = (frame.data[5] & 0b11100000) >> 5;
 
-            // 在导航驾驶里面选择的速度类型 0 - 2
-            m_speed_rule_selected = ((frame.data[6] & 0b00001100) >> 2);
+        // 在导航驾驶里面选择的速度类型 0 - 2
+        m_speed_rule_selected = ((frame.data[6] & 0b00001100) >> 2);
 
-            // 实处chaoche到
-            m_shichuchaochedao_bit = ((frame.data[6] & 0b01000000) == 0);
+        // 实处chaoche到
+        m_shichuchaochedao_bit = ((frame.data[6] & 0b01000000) == 0);
 
-            // 如果在界面上选择0，那就用HW4的代码
-            // m_use_hw4_code = m_speed_rule_selected == 0;
+        // 如果在界面上选择0，那就用HW4的代码
+        // m_use_hw4_code = m_speed_rule_selected == 0;
 
-            // 如果不是使用HW4的代码，那么就使用HW3的代码
-            if (!m_use_hw4_code) {
-                if (true) {
-                    switch (m_speed_rule_selected) {
-                        case 0:
-                            m_speed_profile = 0;
-                            break;
-                        default:
-                            m_speed_profile = m_speed_rule_selected - 1;
-                            break;
-                    }
-                }
-                else {
-                    switch (m_follow_distance) {
-                        case 1:
-                        case 2:
-                        case 3:
-                            m_speed_profile = 2;
-                            break;
-                        case 4:
-                        case 5:
-                            m_speed_profile = 1;
-                            break;
-                        case 6:
-                            m_speed_profile = 0;
-                            break;
-                        default:
-                            m_speed_profile = 0;
-                            break;
-                    }
+        // 如果不是使用HW4的代码，那么就使用HW3的代码
+        if (!m_use_hw4_code) {
+            if (true) {
+                switch (m_speed_rule_selected) {
+                    case 0:
+                        m_speed_profile = 0;
+                        break;
+                    default:
+                        m_speed_profile = m_speed_rule_selected - 1;
+                        break;
                 }
             }
             else {
                 switch (m_follow_distance) {
                     case 1:
-                        m_speed_profile = 3; break;
                     case 2:
-                        m_speed_profile = 2; break;
                     case 3:
-                        m_speed_profile = 1; break;
+                        m_speed_profile = 2;
+                        break;
                     case 4:
-                        m_speed_profile = 0; break;
                     case 5:
-                        m_speed_profile = 4; break;
+                        m_speed_profile = 1;
+                        break;
+                    case 6:
+                        m_speed_profile = 0;
+                        break;
                     default:
-                        m_speed_profile = 4; break;
+                        m_speed_profile = 0;
+                        break;
                 }
             }
-
-            if (m_enable_debug)
-                m_frame_to_debug_vec_for_0x3F8[0] = frame;
-
-            return;
+        }
+        else {
+            switch (m_follow_distance) {
+                case 1:
+                    m_speed_profile = 3; break;
+                case 2:
+                    m_speed_profile = 2; break;
+                case 3:
+                    m_speed_profile = 1; break;
+                case 4:
+                    m_speed_profile = 0; break;
+                case 5:
+                    m_speed_profile = 4; break;
+                default:
+                    m_speed_profile = 4; break;
+            }
         }
 
-        if (!m_is_fsd_enabled)
-            return;
+        if (m_enable_debug)
+            m_frame_to_debug_vec_for_0x3F8[0] = frame;
+    }
 
-        if (frame.can_id == 0x3FD) {
-            auto index = ReadMuxID(frame);
-            // index 0: Main FSD control message
-            if (index == 0) {
-                // 计算限速
-                if (!m_use_hw4_code) {
-                    // 速度偏移的原始值
-                    m_speed_offset_raw = frame.data[3];
+    void Handle_0x3FD_Mux0(can_frame & frame) {
+        // 计算限速
+        if (!m_use_hw4_code) {
+            // 速度偏移的原始值
+            m_speed_offset_raw = frame.data[3];
 
-                    // 偏移模式是固定速度
-                    if ((0b10000000 & m_speed_offset_raw) == 0) {
-                        m_speed_offset_v2 = 0x7F & m_speed_offset_raw; // 10 - 60 - 120
-                        m_speed_offset_v2 = Rerange(Clamp(m_speed_offset_v2, 60, 80), 60, 80, 0, 120);
-                    }
-                    // 偏移模式是百分比
-                    else {
-                        m_speed_offset_v2 = 0x7F & m_speed_offset_raw; // 10 - 60 - 120
-                        m_speed_offset_v2 = Rerange(Clamp(m_speed_offset_v2, 60, 120), 60, 120, 0, 120);
-                    }
+            if (m_speed_offset_raw != m_speed_offset_raw_last_calc || m_speed_limit != m_speed_limit_last_calc) {
+                m_speed_offset_raw_last_calc = m_speed_offset_raw;
+                m_speed_limit_last_calc = m_speed_limit;
 
-                    // 如果速度在UI上选择为0，表示希望使用自动限速
-                    if (m_speed_offset_v2 == 0 && m_speed_limit > 0) {
-                        if (m_speed_limit <= 30)
-                            m_target_speed = 30;
-                        else if (m_speed_limit < 40)
-                            m_target_speed = 40;
-                        else if (m_speed_limit < 50)
-                            m_target_speed = 50;
-                        else if (m_speed_limit <= 60)
-                            m_target_speed = 70;
-                        else if (m_speed_limit < 80)
-                            m_target_speed = 80;
-                        else if (m_speed_limit == 80)
-                            m_target_speed = 90;
-                        else if (m_speed_limit <= 90)
-                            m_target_speed = 100;
-                        else if (m_speed_limit <= 100)
-                            m_target_speed = 110;
-                        else if (m_speed_limit < 120)
-                            m_target_speed = 120;
-                        else
-                            m_target_speed = 130;
-
-                        m_speed_offset_v2 = CalcAutoCANOffset(m_target_speed);
-                    }
-
-                    m_speed_offset = m_speed_offset_v2;
+                // 偏移模式是固定速度
+                if ((0b10000000 & m_speed_offset_raw) == 0) {
+                    m_speed_offset_v2 = 0x7F & m_speed_offset_raw; // 10 - 60 - 120
+                    m_speed_offset_v2 = Rerange(Clamp(m_speed_offset_v2, 60, 80), 60, 80, 0, 120);
+                }
+                // 偏移模式是百分比
+                else {
+                    m_speed_offset_v2 = 0x7F & m_speed_offset_raw; // 10 - 60 - 120
+                    m_speed_offset_v2 = Rerange(Clamp(m_speed_offset_v2, 60, 120), 60, 120, 0, 120);
                 }
 
-                // 打开FSD
-                SetBit(frame, 46, true); // FSD enable / activation bit
-                if (m_use_hw4_code)
-                    SetBit(frame, 60, true); // Additional HW4-specific FSD bit
+                // 如果速度在UI上选择为0，表示希望使用自动限速
+                if (m_speed_offset_v2 == 0 && m_speed_limit > 0) {
+                    if (m_speed_limit <= 30)
+                        m_target_speed = 30;
+                    else if (m_speed_limit < 40)
+                        m_target_speed = 40;
+                    else if (m_speed_limit < 50)
+                        m_target_speed = 50;
+                    else if (m_speed_limit <= 60)
+                        m_target_speed = 70;
+                    else if (m_speed_limit < 80)
+                        m_target_speed = 80;
+                    else if (m_speed_limit == 80)
+                        m_target_speed = 90;
+                    else if (m_speed_limit <= 90)
+                        m_target_speed = 100;
+                    else if (m_speed_limit <= 100)
+                        m_target_speed = 110;
+                    else if (m_speed_limit < 120)
+                        m_target_speed = 120;
+                    else
+                        m_target_speed = 130;
 
-                // 打开紧急车辆检测
-                if (m_use_hw4_code)
-                    SetBit(frame, 59, true);
-
-                // set profile
-                if (!m_use_hw4_code) {
-                    frame.data[6] &= ~0x06;
-                    frame.data[6] |= (m_speed_profile << 1);
+                    m_speed_offset_v2 = CalcAutoCANOffset(m_target_speed);
                 }
 
-                // FSD 停车/停点控制相关开关
-                SetBit(frame, 38, true);
-
-                // HOV 相关开关，通常可理解为多人乘员车道/拼车道策略
-                SetBit(frame, 3, true);
-
-                // FSD 可视化显示开关
-                SetBit(frame, 37, true);
-
-                // 发送
-                mcp->sendMessage(&frame);
+                m_speed_offset = m_speed_offset_v2;
             }
-
-            // index 1: Nag suppression message (HW3)
-            if (index == 1) {
-                // 禁用Nag
-                SetBit(frame, 19, false);
-                SetBit(frame, 46, true);
-
-                // 禁用驾驶室内摄像头
-                // 如果打开了驶出超车道，暗含着打开了摄像头监控
-                SetBit(frame, 43, m_shichuchaochedao_bit);
-
-                // UI_hardCoreSummon
-                if (m_use_hw4_code)
-                    SetBit(frame, 47, true); // Extra bit set only on HW4
-
-                // // 手握方向盘提醒
-                // SetBit(frame, 17, false); //  ← 告知车机驾驶员在看路
-                //
-                // // 39
-                // // UI_factorySummonEnable
-                // SetBit(frame, 39, true);
-                //
-                // // 打开停止警告
-                // // UI_enableAutopilotStopWarning
-                // SetBit(frame, 44, true);
-                //
-                // // 显示车到图
-                // SetBit(frame, 45, true);
-                //
-                // // UI_enableMapStops 20
-                // SetBit(frame, 20, true);
-
-                //
-                mcp->sendMessage(&frame);
-            }
-
-            // index 2: Speed offset injection
-            if (index == 2) {
-                // HW3.SpeedOffset
-                if (!m_use_hw4_code) {
-                    frame.data[0] &= ~(0b11000000);
-                    frame.data[1] &= ~(0b00111111);
-                    frame.data[0] |= (m_speed_offset & 0x03) << 6;
-                    frame.data[1] |= (m_speed_offset >> 2);
-                }
-
-                // HW4 Set profile
-                if (m_use_hw4_code) {
-                    frame.data[7] &= ~(0x07 << 4);
-                    frame.data[7] |= (m_speed_profile & 0x07) << 4;
-                }
-
-                // m_frame_to_debug[index] = frame;
-                mcp->sendMessage(&frame);
-            }
-
-            if (m_enable_debug)
-                m_frame_to_debug_vec_for_0x3DF[index] = frame;
-            return;
         }
 
-        if (frame.can_id == 880) {
-            // 0x3F8: 0:00010001;8:11101101;16:00000111;24:10100000;32:01100000;40:00001011;48:00101000;56:10101011;
+        // 打开FSD
+        SetBit(frame, 46, true); // FSD enable / activation bit
+        if (m_use_hw4_code)
+            SetBit(frame, 60, true); // Additional HW4-specific FSD bit
 
-            if (m_enable_debug)
-                m_frame_to_debug_vec_for_0x370[0] = frame;
+        // 打开紧急车辆检测
+        if (m_use_hw4_code)
+            SetBit(frame, 59, true);
 
-            // only act when handsOnLevel == 0 (no hands detected)
-            uint8_t hands_on = frame.data[4] >> 6 & 0x03;
-            if(hands_on != 0) return;
+        // set profile
+        if (!m_use_hw4_code) {
+            frame.data[6] &= ~0x06;
+            frame.data[6] |= (m_speed_profile << 1);
+        }
 
-            can_frame echo{};
-            memset(&echo, 0, sizeof(can_frame));
+        // // FSD 停车/停点控制相关开关
+        // SetBit(frame, 38, true);
+        //
+        // // HOV 相关开关，通常可理解为多人乘员车道/拼车道策略
+        // SetBit(frame, 3, true);
+        //
+        // // FSD 可视化显示开关
+        // SetBit(frame, 37, true);
 
-            echo.can_id = 880;
-            echo.can_dlc = 8;
+        // 发送
+        mcp->sendMessage(&frame);
+    }
 
-            echo.data[0] = frame.data[0];
-            echo.data[1] = frame.data[1];
-            echo.data[2] = (frame.data[2] & 0xF0) | 0x08;
-            echo.data[5] = frame.data[5];
+    void
+    Handle_0x3FD_Mux1(can_frame & frame) {
+        // 禁用Nag
+        SetBit(frame, 19, false);
+        SetBit(frame, 46, true);
 
-            // Fixed torque = 1.80 Nm (tRaw = 0x08B6)
-            echo.data[3] = 0xB6;
+        // 禁用驾驶室内摄像头
+        // 如果打开了驶出超车道，暗含着打开了摄像头监控
+        SetBit(frame, 43, m_shichuchaochedao_bit);
 
-            // handsOnLevel = 1
-            echo.data[4] = frame.data[4] | 0x40;
+        // UI_hardCoreSummon
+        if (m_use_hw4_code)
+            SetBit(frame, 47, true); // Extra bit set only on HW4
 
-            // Counter + 1
-            uint8_t cnt = (frame.data[6] & 0x0F);
-            cnt = (cnt + 1) & 0x0F;
-            echo.data[6] = (frame.data[6] & 0xF0) | cnt;
+        // // 手握方向盘提醒
+        // SetBit(frame, 17, false); //  ← 告知车机驾驶员在看路
+        //
+        // // 39
+        // // UI_factorySummonEnable
+        // SetBit(frame, 39, true);
+        //
+        // // 打开停止警告
+        // // UI_enableAutopilotStopWarning
+        // SetBit(frame, 44, true);
+        //
+        // // 显示车到图
+        // SetBit(frame, 45, true);
+        //
+        // // UI_enableMapStops 20
+        // SetBit(frame, 20, true);
 
-            // Checksum: sum(byte0..byte6) + 0x73
-            uint16_t sum = echo.data[0] + echo.data[1] + echo.data[2] + echo.data[3] + echo.data[4] + echo.data[5] + echo.data[6];
-            echo.data[7] = static_cast<uint8_t>((sum + 0x73) & 0xFF);
+        //
+        mcp->sendMessage(&frame);
+    }
 
-            if (m_enable_debug)
-                m_frame_to_debug_vec_for_0x370[1] = echo;
+    void
+    Handle_0x3FD_Mux2(can_frame & frame) {
+        // HW3.SpeedOffset
+        if (!m_use_hw4_code) {
+            frame.data[0] &= ~(0b11000000);
+            frame.data[1] &= ~(0b00111111);
+            frame.data[0] |= (m_speed_offset & 0x03) << 6;
+            frame.data[1] |= (m_speed_offset >> 2);
+        }
 
-            mcp->sendMessage(&echo);
+        // HW4 Set profile
+        if (m_use_hw4_code) {
+            frame.data[7] &= ~(0x07 << 4);
+            frame.data[7] |= (m_speed_profile & 0x07) << 4;
+        }
+
+        // m_frame_to_debug[index] = frame;
+        mcp->sendMessage(&frame);
+    }
+
+    void
+    Handle_880(can_frame & frame) {
+        // 0x3F8: 0:00010001;8:11101101;16:00000111;24:10100000;32:01100000;40:00001011;48:00101000;56:10101011;
+
+        if (m_enable_debug)
+            m_frame_to_debug_vec_for_0x370[0] = frame;
+
+        // only act when handsOnLevel == 0 (no hands detected)
+        uint8_t hands_on = frame.data[4] >> 6 & 0x03;
+        if(hands_on != 0) return;
+
+        can_frame echo{};
+        memset(&echo, 0, sizeof(can_frame));
+
+        echo.can_id = 880;
+        echo.can_dlc = 8;
+
+        echo.data[0] = frame.data[0];
+        echo.data[1] = frame.data[1];
+        echo.data[2] = (frame.data[2] & 0xF0) | 0x08;
+        echo.data[5] = frame.data[5];
+
+        // Fixed torque = 1.80 Nm (tRaw = 0x08B6)
+        echo.data[3] = 0xB6;
+
+        // handsOnLevel = 1
+        echo.data[4] = frame.data[4] | 0x40;
+
+        // Counter + 1
+        uint8_t cnt = (frame.data[6] & 0x0F);
+        cnt = (cnt + 1) & 0x0F;
+        echo.data[6] = (frame.data[6] & 0xF0) | cnt;
+
+        // Checksum: sum(byte0..byte6) + 0x73
+        uint16_t sum = echo.data[0] + echo.data[1] + echo.data[2] + echo.data[3] + echo.data[4] + echo.data[5] + echo.data[6];
+        echo.data[7] = static_cast<uint8_t>((sum + 0x73) & 0xFF);
+
+        // 发送
+        mcp->sendMessage(&echo);
+
+        if (m_enable_debug)
+            m_frame_to_debug_vec_for_0x370[1] = echo;
+    }
+
+    void HandleMessage(can_frame &frame) {
+        if (frame.can_dlc < 8)
+            return;
+
+        switch (frame.can_id) {
+            case 0x399:
+                Handle_0x399(frame);
+                break;
+            case 787:
+                Handle_787(frame);
+                break;
+            case 0x3DF:
+                Handle_0x3DF(frame);
+                break;
+            case 0x3FD: {
+                auto index = ReadMuxID(frame);
+
+                if (m_enable_debug)
+                    m_frame_to_debug_vec_for_0x3DF[index] = frame;
+
+                switch (index) {
+                    case 0:
+                        Handle_0x3FD_Mux0(frame);
+                        break;
+                    case 1:
+                        Handle_0x3FD_Mux1(frame);
+                        break;
+                    case 2:
+                        Handle_0x3FD_Mux2(frame);
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            }
+            case 880:
+                Handle_880(frame);
+                break;
+
         }
 
         if (m_enable_debug && m_last_print_counter++ % 1000 == 0) {
@@ -302,8 +338,7 @@ struct FSDHandler {
 
             // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3DF[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[2]).c_str());
             // Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x3F8[0]).c_str());
-
-            Serial.printf("0x3F8: from %s, to %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x370[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x370[1]).c_str());
+            // Serial.printf("0x3F8: from %s, to %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x370[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x370[1]).c_str());
         }
     }
 
@@ -387,16 +422,35 @@ private:
             frame.data[byteIndex] &= static_cast<uint8_t>(~mask);
     }
 
+    inline uint8_t
+    ComputeVehicleChecksum(const can_frame &frame, uint8_t checksumByteIndex = 7) {
+        if (checksumByteIndex >= frame.can_dlc)
+            return 0;
+
+        uint16_t sum = static_cast<uint16_t>(frame.can_id & 0xFF) + static_cast<uint16_t>((frame.can_id >> 8) & 0xFF);
+        for (uint8_t i = 0; i < frame.can_dlc; ++i)
+        {
+            if (i == checksumByteIndex)
+                continue;
+            sum += frame.data[i];
+        }
+        return static_cast<uint8_t>(sum & 0xFF);
+    }
+
 private:
     uint m_speed_offset = 0;
+
     uint8_t m_speed_offset_raw = 0;
+    uint8_t m_speed_offset_raw_last_calc = 0;
+    int m_speed_limit = 0;
+    int m_speed_limit_last_calc = 0;
+
     int m_speed_offset_v2 = 0;
 
     int32_t m_follow_distance = 0;
     int32_t m_speed_rule_selected = 0;
 
     bool m_is_fsd_enabled = false;
-    int m_speed_limit = 0;
     int m_target_speed = 0;
 
     int m_speed_profile = 1;
@@ -427,7 +481,7 @@ private:
     bool m_shichuchaochedao_bit = false;
 
     // 是否debug
-    bool m_enable_debug = true;
+    bool m_enable_debug = false;
 
     // 上一次打印的计数器
     uint32_t m_last_print_counter = 0;
@@ -438,10 +492,10 @@ std::unique_ptr<FSDHandler> handler;
 void
 setup() {
     handler = std::make_unique<FSDHandler>();
-    delay(1500);
-    Serial.begin(115200);
-    unsigned long t0 = millis();
-    while (!Serial && millis() - t0 < 1000) {
+        delay(1500);
+        Serial.begin(115200);
+        unsigned long t0 = millis();
+        while (!Serial && millis() - t0 < 1000) {
     }
 
     mcp = std::make_unique<MCP2515>(CAN_CS);
