@@ -198,9 +198,9 @@ struct FSDHandler {
                 // 轨道和目标标签
                 SetBit(frame, 46, true);
 
-                // if (m_use_hw4_code)
                 // UI_hardCoreSummon
-                // SetBit(frame, 47, true); // Extra bit set only on HW4
+                if (m_use_hw4_code)
+                    SetBit(frame, 47, true); // Extra bit set only on HW4
 
                 // 39
                 // UI_factorySummonEnable
@@ -276,10 +276,10 @@ struct FSDHandler {
             uint16_t sum = echo.data[0] + echo.data[1] + echo.data[2] + echo.data[3] + echo.data[4] + echo.data[5] + echo.data[6];
             echo.data[7] = static_cast<uint8_t>((sum + 0x73) & 0xFF);
 
-            mcp->sendMessage(&frame);
+            mcp->sendMessage(&echo);
         }
 
-        if (m_enable_debug && m_last_print_counter++ % 500 == 0) {
+        if (m_enable_debug && m_last_print_counter++ % 1000 == 0) {
             Serial.printf(
                 "FSD: %d(HW4Code:%s),Follow:%d,Profile:%d,Offset:%d,SpeedLimit:%d,TargetSpeed: %d,Camera:%d\n",
                 m_is_fsd_enabled,
@@ -415,7 +415,7 @@ private:
     bool m_shichuchaochedao_bit = false;
 
     // 是否debug
-    bool m_enable_debug = false;
+    bool m_enable_debug = true;
 
     // 上一次打印的计数器
     uint32_t m_last_print_counter = 0;
