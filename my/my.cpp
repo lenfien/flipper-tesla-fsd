@@ -305,7 +305,6 @@ struct FSDHandler {
             case 880:
                 Handle_880(frame);
                 break;
-
         }
 
         if (m_enable_debug && m_last_print_counter++ % 1000 == 0) {
