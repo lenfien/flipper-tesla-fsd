@@ -1,6 +1,7 @@
 #include <memory>
 #include <SPI.h>
 #include <string>
+#include <vector>
 #include <iomanip>
 #include <sstream>
 #include <mcp2515.h>
@@ -17,7 +18,8 @@ std::unique_ptr<MCP2515> mcp;
 
 struct FSDHandler {
     FSDHandler() {
-        m_frame_to_debug_vec.resize(10);
+        m_frame_to_debug_vec_for_0x3DF.resize(10);
+        m_frame_to_debug_vec_for_0x3F8.resize(1);
     }
 
     void HandleMessage(can_frame &frame) {
@@ -28,7 +30,7 @@ struct FSDHandler {
         }
 
         // 其他配置项
-        if (frame.can_id == 1016) {
+        if (frame.can_id == 0x3F8) {
             // 是否跟随导航驾驶已经开启
             // 用这个来决定是否开启FSD
             m_is_fsd_enabled = (frame.data[1] & 0b00100000) != 0;
@@ -37,29 +39,44 @@ struct FSDHandler {
             m_follow_distance = (frame.data[5] & 0b11100000) >> 5;
 
             // 在导航驾驶里面选择的速度类型 0 - 2
-            m_speed_rule_selected = m_speed_profile = ((frame.data[6] & 0b00001100) >> 2);
+            m_speed_rule_selected = ((frame.data[6] & 0b00001100) >> 2);
+
+            // 实处chaoche到
+            m_shichuchaochedao_bit = ((frame.data[6] & 0b01000000) == 0);
 
             // 如果在界面上选择0，那就用HW4的代码
-            m_use_hw4_code = m_speed_rule_selected == 0;
+            // m_use_hw4_code = m_speed_rule_selected == 0;
 
             // 如果不是使用HW4的代码，那么就使用HW3的代码
             if (!m_use_hw4_code) {
-                switch (m_follow_distance) {
-                    case 1:
-                    case 2:
-                    case 3:
-                        m_speed_profile = 2;
-                        break;
-                    case 4:
-                    case 5:
-                        m_speed_profile = 1;
-                        break;
-                    case 6:
-                        m_speed_profile = 0;
-                        break;
-                    default:
-                        m_speed_profile = 0;
-                        break;
+                if (true) {
+                    switch (m_speed_rule_selected) {
+                        case 0:
+                            m_speed_profile = 0;
+                            break;
+                        default:
+                            m_speed_profile = m_speed_rule_selected - 1;
+                            break;
+                    }
+                }
+                else {
+                    switch (m_follow_distance) {
+                        case 1:
+                        case 2:
+                        case 3:
+                            m_speed_profile = 2;
+                            break;
+                        case 4:
+                        case 5:
+                            m_speed_profile = 1;
+                            break;
+                        case 6:
+                            m_speed_profile = 0;
+                            break;
+                        default:
+                            m_speed_profile = 0;
+                            break;
+                    }
                 }
             }
             else {
@@ -73,6 +90,9 @@ struct FSDHandler {
                 }
             }
 
+            if (m_enable_debug)
+                m_frame_to_debug_vec_for_0x3F8[0] = frame;
+
             return;
         }
 
@@ -81,7 +101,6 @@ struct FSDHandler {
 
         if (frame.can_id == 0x3FD) {
             auto index = ReadMuxID(frame);
-
             // index 0: Main FSD control message
             if (index == 0) {
                 // 计算限速
@@ -135,7 +154,8 @@ struct FSDHandler {
                     SetBit(frame, 60, true); // Additional HW4-specific FSD bit
 
                 // 打开紧急车辆检测
-                SetBit(frame, 59, true);
+                if (m_use_hw4_code)
+                    SetBit(frame, 59, true);
 
                 // set profile
                 if (!m_use_hw4_code) {
@@ -152,27 +172,40 @@ struct FSDHandler {
                 // FSD 可视化显示开关
                 SetBit(frame, 37, true);
 
-                // m_frame_to_debug[index] = frame;
+                // 发送
                 mcp->sendMessage(&frame);
             }
 
             // index 1: Nag suppression message (HW3)
             if (index == 1) {
-                SetBit(frame, 19, false); // ← NAG SUPPRESSION Clears the hands-on-wheel nag / attention bit
+                // 手握方向盘提醒
+                SetBit(frame, 17, false); // ← NAG SUPPRESSION Clears the hands-on-wheel nag / attention bit
+
+                // 禁用驾驶室内摄像头
+                SetBit(frame, 43, m_shichuchaochedao_bit);
 
                 // 轨道和目标标签
                 SetBit(frame, 46, true);
 
-                if (m_use_hw4_code)
-                    SetBit(frame, 47, true); // Extra bit set only on HW4
+                // if (m_use_hw4_code)
+                // UI_hardCoreSummon
+                SetBit(frame, 47, true); // Extra bit set only on HW4
 
-                // 禁用驾驶室内摄像头
-                SetBit(frame, 43, false);
+                // 39
+                // UI_factorySummonEnable
+                SetBit(frame, 39, true);
+
+                // 打开停止警告
+                // UI_enableAutopilotStopWarning
+                SetBit(frame, 44, true);
 
                 // 显示车到图
                 SetBit(frame, 45, true);
 
-                // m_frame_to_debug_vec[index] = frame;
+                // UI_enableMapStops 20
+                SetBit(frame, 20, true);
+
+                //
                 mcp->sendMessage(&frame);
             }
 
@@ -196,20 +229,23 @@ struct FSDHandler {
                 mcp->sendMessage(&frame);
             }
 
-            if (index == 0 && enablePrint) {
-                // Serial.printf(
-                //     "FSDHandler: FSDEnable: %d(HW4Code:%s), Follow:%d,Profile:%d,Offset: %d, SpeedLimit:%d,TargetSpeed: %d, Raw: 0:%s 1:%s 2:%s, index: %d\n",
-                //     m_is_fsd_enabled,
-                //     m_use_hw4_code ? "Yes" : "No",
-                //     m_follow_distance,
-                //     m_speed_profile,
-                //     m_speed_offset,
-                //     m_speed_limit,
-                //     m_target_speed,
-                //     ToString(m_frame_to_debug_vec[0]).c_str(),
-                //     ToString(m_frame_to_debug_vec[1]).c_str(),
-                //     ToString(m_frame_to_debug_vec[2]).c_str(),
-                //     m_index_to_use);
+            if (m_enable_debug)
+                m_frame_to_debug_vec_for_0x3DF[index] = frame;
+
+            if (m_enable_debug && index == 2) {
+                Serial.printf(
+                    "FSDHandler: FSDEnable: %d(HW4Code:%s), Follow:%d,Profile:%d,Offset: %d, SpeedLimit:%d,TargetSpeed: %d,Camera:%d\n",
+                    m_is_fsd_enabled,
+                    m_use_hw4_code ? "Yes" : "No",
+                    m_follow_distance,
+                    m_speed_profile,
+                    m_speed_offset,
+                    m_speed_limit,
+                    m_target_speed,
+                    m_shichuchaochedao_bit);
+
+                // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3DF[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[2]).c_str());
+                // Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x3F8[0]).c_str());
             }
         }
 
@@ -247,12 +283,12 @@ struct FSDHandler {
     // 工具函数
 private:
     std::string
-    ToBinaryStr(uint8_t i) {
+    ToBinaryString(uint8_t i) {
         std::string b;
         b.reserve(8);
-        for (int index = 0; index < sizeof(i) * 8; index += 1) {
+        for (int index = 0; index < sizeof(i) * 8; index += 1)
             b += ((i << index) & 0b10000000) ? "1" : "0";
-        }
+
         return b;
     }
 
@@ -291,10 +327,19 @@ private:
     }
 
     std::string
-    ToString(const can_frame &frame) {
+    ToHexString(const can_frame &frame) {
         std::ostringstream result;
         for (size_t i = 0; i < sizeof(frame.data); ++i)
             result << "0x" << std::hex << (int) frame.data[i] << ",";
+        return result.str();
+    }
+
+    std::string
+    ToBinaryString(const can_frame &frame) {
+        std::ostringstream result;
+        for (size_t i = 0; i < sizeof(frame.data); ++i)
+            result << i * 8 << ":" << ToBinaryString(frame.data[i]) << ";";
+
         return result.str();
     }
 
@@ -320,8 +365,8 @@ private:
     uint8_t m_speed_offset_raw = 0;
     int m_speed_offset_v2 = 0;
 
-    uint32_t m_follow_distance = 0;
-    uint32_t m_speed_rule_selected = 0;
+    int32_t m_follow_distance = 0;
+    int32_t m_speed_rule_selected = 0;
 
     bool m_is_fsd_enabled = false;
     int m_speed_limit = 0;
@@ -331,7 +376,8 @@ private:
 
     bool m_use_hw4_code = false;
 
-    std::vector<can_frame> m_frame_to_debug_vec;
+    std::vector<can_frame> m_frame_to_debug_vec_for_0x3DF;
+    std::vector<can_frame> m_frame_to_debug_vec_for_0x3F8;
 
     uint8_t m_to_use_data[5][8] = {
         // 0:11 f5  7 bd 20 1b 2e a6
@@ -347,6 +393,13 @@ private:
 
     uint32_t m_index_to_use = 0;
     uint32_t m_index_use_counter = 0;
+
+    // 是否应该使出超车道
+    // 0x3F8 54位
+    bool m_shichuchaochedao_bit = false;
+
+    // 是否debug
+    bool m_enable_debug = false;
 };
 
 std::unique_ptr<FSDHandler> handler;
