@@ -256,7 +256,7 @@ struct FSDHandler {
             uint8_t hands_on = frame.data[4] >> 6 & 0x03;
             if(hands_on != 0) return;
 
-            can_frame echo;
+            can_frame echo{};
             memset(&echo, 0, sizeof(can_frame));
 
             echo.can_id = 880;
