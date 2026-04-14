@@ -106,8 +106,7 @@ inline uint8_t computeVehicleChecksum(const CanFrame &frame, uint8_t checksumByt
     if (checksumByteIndex >= frame.dlc)
         return 0;
 
-    uint16_t sum = static_cast<uint16_t>(frame.id & 0xFF) +
-                   static_cast<uint16_t>((frame.id >> 8) & 0xFF);
+    uint16_t sum = static_cast<uint16_t>(frame.id & 0xFF) + static_cast<uint16_t>((frame.id >> 8) & 0xFF);
     for (uint8_t i = 0; i < frame.dlc; ++i)
     {
         if (i == checksumByteIndex)

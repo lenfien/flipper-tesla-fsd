@@ -20,6 +20,7 @@ struct FSDHandler {
     FSDHandler() {
         m_frame_to_debug_vec_for_0x3DF.resize(10);
         m_frame_to_debug_vec_for_0x3F8.resize(1);
+        m_frame_to_debug_vec_for_0x370.resize(2);
     }
 
     void HandleMessage(can_frame &frame) {
@@ -187,34 +188,34 @@ struct FSDHandler {
 
             // index 1: Nag suppression message (HW3)
             if (index == 1) {
-                // 手握方向盘提醒
-                SetBit(frame, 17, false); //  ← 告知车机驾驶员在看路
-                SetBit(frame, 19, false); // ← NAG SUPPRESSION Clears the hands-on-wheel nag / attention bit
+                // 禁用Nag
+                SetBit(frame, 19, false);
+                SetBit(frame, 46, true);
 
                 // 禁用驾驶室内摄像头
                 // 如果打开了驶出超车道，暗含着打开了摄像头监控
                 SetBit(frame, 43, m_shichuchaochedao_bit);
 
-                // 轨道和目标标签
-                SetBit(frame, 46, true);
-
                 // UI_hardCoreSummon
                 if (m_use_hw4_code)
                     SetBit(frame, 47, true); // Extra bit set only on HW4
 
-                // 39
-                // UI_factorySummonEnable
-                SetBit(frame, 39, true);
-
-                // 打开停止警告
-                // UI_enableAutopilotStopWarning
-                SetBit(frame, 44, true);
-
-                // 显示车到图
-                SetBit(frame, 45, true);
-
-                // UI_enableMapStops 20
-                SetBit(frame, 20, true);
+                // // 手握方向盘提醒
+                // SetBit(frame, 17, false); //  ← 告知车机驾驶员在看路
+                //
+                // // 39
+                // // UI_factorySummonEnable
+                // SetBit(frame, 39, true);
+                //
+                // // 打开停止警告
+                // // UI_enableAutopilotStopWarning
+                // SetBit(frame, 44, true);
+                //
+                // // 显示车到图
+                // SetBit(frame, 45, true);
+                //
+                // // UI_enableMapStops 20
+                // SetBit(frame, 20, true);
 
                 //
                 mcp->sendMessage(&frame);
@@ -242,20 +243,18 @@ struct FSDHandler {
 
             if (m_enable_debug)
                 m_frame_to_debug_vec_for_0x3DF[index] = frame;
+            return;
         }
 
-#define CAN_ID_EPAS_STATUS    0x370  // 880 - EPAS3P_sysStatus (nag killer target)
-        if (frame.can_id == CAN_ID_EPAS_STATUS) {
+        if (frame.can_id == 880) {
             // 0x3F8: 0:00010001;8:11101101;16:00000111;24:10100000;32:01100000;40:00001011;48:00101000;56:10101011;
 
-            m_frame_to_debug_vec_for_0x370 = frame;
+            if (m_enable_debug)
+                m_frame_to_debug_vec_for_0x370[0] = frame;
 
             // only act when handsOnLevel == 0 (no hands detected)
             uint8_t hands_on = frame.data[4] >> 6 & 0x03;
             if(hands_on != 0) return;
-
-            // m_frame_to_debug_vec_for_0x370 = frame;
-            return;
 
             can_frame echo;
             memset(&echo, 0, sizeof(can_frame));
@@ -283,6 +282,9 @@ struct FSDHandler {
             uint16_t sum = echo.data[0] + echo.data[1] + echo.data[2] + echo.data[3] + echo.data[4] + echo.data[5] + echo.data[6];
             echo.data[7] = static_cast<uint8_t>((sum + 0x73) & 0xFF);
 
+            if (m_enable_debug)
+                m_frame_to_debug_vec_for_0x370[1] = echo;
+
             mcp->sendMessage(&echo);
         }
 
@@ -300,7 +302,8 @@ struct FSDHandler {
 
             // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3DF[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[2]).c_str());
             // Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x3F8[0]).c_str());
-            Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x370).c_str());
+
+            Serial.printf("0x3F8: from %s, to %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x370[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x370[1]).c_str());
         }
     }
 
@@ -402,7 +405,7 @@ private:
 
     std::vector<can_frame> m_frame_to_debug_vec_for_0x3DF;
     std::vector<can_frame> m_frame_to_debug_vec_for_0x3F8;
-    can_frame m_frame_to_debug_vec_for_0x370;
+    std::vector<can_frame> m_frame_to_debug_vec_for_0x370;
 
     uint8_t m_to_use_data[5][8] = {
         // 0:11 f5  7 bd 20 1b 2e a6

@@ -165,6 +165,7 @@ struct HW3Handler : public CarManagerBase
             driver.send(frame);
             return;
         }
+
         if (frame.id == 1016)
         {
             if (frame.dlc < 6)
@@ -189,6 +190,7 @@ struct HW3Handler : public CarManagerBase
             }
             return;
         }
+
         if (frame.id == 2047)
         {
             if (frame.dlc < 6)
@@ -225,11 +227,14 @@ struct HW3Handler : public CarManagerBase
             auto index = readMuxID(frame);
             if (index == 0)
                 ADEnabled = isADSelectedInUI(frame);
+
             if (index == 0 && ADEnabled && (!checkAD || checkAD()))
             {
                 speedOffset = std::max(std::min(((uint8_t)((frame.data[3] >> 1) & 0x3F) - 30) * 5, 100), 0);
                 setBit(frame, 46, true);
-                setSpeedProfileV12V13(frame, speedProfile);
+                frame.data[6] &= ~0x06;
+                frame.data[6] |= (profile << 1);
+
                 framesSent++;
                 driver.send(frame);
                 if (onSend)
@@ -264,6 +269,7 @@ struct HW3Handler : public CarManagerBase
                 frame.data[1] &= ~(0b00111111);
                 frame.data[0] |= (speedOffset & 0x03) << 6;
                 frame.data[1] |= (speedOffset >> 2);
+
                 framesSent++;
                 driver.send(frame);
                 if (onSend)
