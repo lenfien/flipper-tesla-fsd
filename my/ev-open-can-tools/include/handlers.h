@@ -552,18 +552,22 @@ struct HW4Handler : public CarManagerBase
                         onSend(1, true);
                 }
             }
+
             if (index == 2 && ADEnabled)
             {
                 frame.data[7] &= ~(0x07 << 4);
                 frame.data[7] |= (speedProfile & 0x07) << 4;
+
                 uint8_t off = hw4OffsetRuntime;
                 if (off > 0)
                     frame.data[1] = (frame.data[1] & 0xC0) | (off & 0x3F);
+
                 framesSent++;
                 driver.send(frame);
                 if (onSend)
                     onSend(2, true);
             }
+
             if (index == 0 && enablePrint)
             {
                 char buf[LogRingBuffer::kMaxMsgLen];

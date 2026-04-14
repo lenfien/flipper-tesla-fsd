@@ -71,7 +71,6 @@ struct LegacyHandler : public CarManagerBase
             if (index == 1)
             {
                 setBit(frame, 19, false);
-                setBit(frame, 43, false);
                 framesSent++;
                 driver.send(frame);
             }
