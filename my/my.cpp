@@ -188,7 +188,7 @@ struct FSDHandler {
             // index 1: Nag suppression message (HW3)
             if (index == 1) {
                 // 手握方向盘提醒
-                SetBit(frame, 17, true); //  ← 告知车机驾驶员在看路
+                SetBit(frame, 17, false); //  ← 告知车机驾驶员在看路
                 SetBit(frame, 19, false); // ← NAG SUPPRESSION Clears the hands-on-wheel nag / attention bit
 
                 // 禁用驾驶室内摄像头
@@ -246,9 +246,16 @@ struct FSDHandler {
 
 #define CAN_ID_EPAS_STATUS    0x370  // 880 - EPAS3P_sysStatus (nag killer target)
         if (frame.can_id == CAN_ID_EPAS_STATUS) {
+            // 0x3F8: 0:00010001;8:11101101;16:00000111;24:10100000;32:01100000;40:00001011;48:00101000;56:10101011;
+
+            m_frame_to_debug_vec_for_0x370 = frame;
+
             // only act when handsOnLevel == 0 (no hands detected)
             uint8_t hands_on = frame.data[4] >> 6 & 0x03;
             if(hands_on != 0) return;
+
+            // m_frame_to_debug_vec_for_0x370 = frame;
+            return;
 
             can_frame echo;
             memset(&echo, 0, sizeof(can_frame));
@@ -280,19 +287,20 @@ struct FSDHandler {
         }
 
         if (m_enable_debug && m_last_print_counter++ % 1000 == 0) {
-            Serial.printf(
-                "FSD: %d(HW4Code:%s),Follow:%d,Profile:%d,Offset:%d,SpeedLimit:%d,TargetSpeed: %d,Camera:%d\n",
-                m_is_fsd_enabled,
-                m_use_hw4_code ? "Yes" : "No",
-                m_follow_distance,
-                m_speed_profile,
-                m_speed_offset,
-                m_speed_limit,
-                m_target_speed,
-                m_shichuchaochedao_bit);
+            // Serial.printf(
+            //     "FSD: %d(HW4Code:%s),Follow:%d,Profile:%d,Offset:%d,SpeedLimit:%d,TargetSpeed: %d,Camera:%d\n",
+            //     m_is_fsd_enabled,
+            //     m_use_hw4_code ? "Yes" : "No",
+            //     m_follow_distance,
+            //     m_speed_profile,
+            //     m_speed_offset,
+            //     m_speed_limit,
+            //     m_target_speed,
+            //     m_shichuchaochedao_bit);
 
             // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3DF[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[2]).c_str());
             // Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x3F8[0]).c_str());
+            Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x370).c_str());
         }
     }
 
@@ -394,6 +402,7 @@ private:
 
     std::vector<can_frame> m_frame_to_debug_vec_for_0x3DF;
     std::vector<can_frame> m_frame_to_debug_vec_for_0x3F8;
+    can_frame m_frame_to_debug_vec_for_0x370;
 
     uint8_t m_to_use_data[5][8] = {
         // 0:11 f5  7 bd 20 1b 2e a6
