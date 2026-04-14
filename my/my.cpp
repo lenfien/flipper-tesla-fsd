@@ -19,8 +19,8 @@ std::unique_ptr<MCP2515> mcp;
 struct FSDHandler {
     FSDHandler() {
         m_frame_to_debug_vec_for_0x3DF.resize(10);
-        m_frame_to_debug_vec_for_0x3F8.resize(1);
-        m_frame_to_debug_vec_for_0x370.resize(2);
+        m_frame_to_debug_vec_for_0x3F8.resize(5);
+        m_frame_to_debug_vec_for_0x370.resize(5);
     }
 
     void
@@ -28,14 +28,16 @@ struct FSDHandler {
         m_speed_limit = (frame.data[1] & 0x1F) * 5;
     }
 
-    void Handle_787(can_frame & frame) {
+    void
+    Handle_787(can_frame& frame) {
         frame.data[0] &= static_cast<uint8_t>(~0x03);
         frame.data[0] |= static_cast<uint8_t>(0x01);
         frame.data[7] = ComputeVehicleChecksum(frame);
         mcp->sendMessage(&frame);
     }
 
-    void Handle_0x3DF(can_frame & frame) {
+    void
+    Handle_0x3F8(can_frame& frame) {
         // 是否跟随导航驾驶已经开启
         // 用这个来决定是否开启FSD
         m_is_fsd_enabled = (frame.data[1] & 0b00100000) != 0;
@@ -48,7 +50,15 @@ struct FSDHandler {
 
         // 实处chaoche到
         // m_shichuchaochedao_bit = ((frame.data[6] & 0b01000000) == 0);
-        m_use_hw4_code = ((frame.data[6] & 0b01000000) == 0);
+        // m_use_hw4_code = ((frame.data[6] & 0b01000000) == 0);
+        m_shichuchaochedao_bit = ((frame.data[6] & 0b01000000) == 0);
+        m_need_ensure_when_change_line = ((frame.data[0] & 0b00000010) != 0);
+
+        // 是否打开内相机，使用变道确认
+        m_enable_camera = m_need_ensure_when_change_line;
+
+        // hw4 使用使出超车道控制
+        m_use_hw4_code = m_shichuchaochedao_bit;
 
         // 如果在界面上选择0，那就用HW4的代码
         // m_use_hw4_code = m_speed_rule_selected == 0;
@@ -85,7 +95,8 @@ struct FSDHandler {
             m_frame_to_debug_vec_for_0x3F8[0] = frame;
     }
 
-    void Handle_0x3FD_Mux0(can_frame & frame) {
+    void
+    Handle_0x3FD_Mux0(can_frame & frame) {
         // 计算限速
         // 速度偏移的原始值
         m_speed_offset_raw = frame.data[3];
@@ -152,14 +163,14 @@ struct FSDHandler {
             frame.data[6] |= (m_speed_profile_for_hw4 << 1);
         }
 
-        // // FSD 停车/停点控制相关开关
-        // SetBit(frame, 38, true);
-        //
-        // // HOV 相关开关，通常可理解为多人乘员车道/拼车道策略
-        // SetBit(frame, 3, true);
-        //
-        // // FSD 可视化显示开关
-        // SetBit(frame, 37, true);
+        // FSD 停车/停点控制相关开关
+        SetBit(frame, 38, true);
+
+        // HOV 相关开关，通常可理解为多人乘员车道/拼车道策略
+        SetBit(frame, 3, true);
+
+        // FSD 可视化显示开关
+        SetBit(frame, 37, true);
 
         // 发送
         mcp->sendMessage(&frame);
@@ -176,10 +187,11 @@ struct FSDHandler {
 
         // 禁用驾驶室内摄像头
         // 如果打开了驶出超车道，暗含着打开了摄像头监控
-        SetBit(frame, 43, m_shichuchaochedao_bit);
+        SetBit(frame, 43, m_enable_camera);
 
-        // // 手握方向盘提醒
-        // SetBit(frame, 17, false); //  ← 告知车机驾驶员在看路
+        // 手握方向盘提醒
+        SetBit(frame, 17, true); //  ← 告知车机驾驶员在看路
+
         //
         // // 39
         // // UI_factorySummonEnable
@@ -188,12 +200,14 @@ struct FSDHandler {
         // // 打开停止警告
         // // UI_enableAutopilotStopWarning
         // SetBit(frame, 44, true);
+
         //
-        // // 显示车到图
+        // 显示车到图
         // SetBit(frame, 45, true);
+
         //
-        // // UI_enableMapStops 20
-        // SetBit(frame, 20, true);
+        // UI_enableMapStops 20
+        SetBit(frame, 20, true);
 
         // 发送
         mcp->sendMessage(&frame);
@@ -225,6 +239,7 @@ struct FSDHandler {
 
     void
     Handle_880(can_frame & frame) {
+        // return;
         // 0x3F8: 0:00010001;8:11101101;16:00000111;24:10100000;32:01100000;40:00001011;48:00101000;56:10101011;
 
         if (m_enable_debug)
@@ -278,8 +293,8 @@ struct FSDHandler {
             case 787:
                 Handle_787(frame);
                 break;
-            case 0x3DF:
-                Handle_0x3DF(frame);
+            case 0x3F8:
+                Handle_0x3F8(frame);
                 break;
             case 0x3FD: {
                 auto index = ReadMuxID(frame);
@@ -318,7 +333,7 @@ struct FSDHandler {
                 m_speed_offset,
                 m_speed_limit,
                 m_target_speed,
-                m_shichuchaochedao_bit);
+                m_enable_camera);
 
             // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3DF[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[2]).c_str());
             // Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x3F8[0]).c_str());
@@ -468,8 +483,11 @@ private:
     // 打开摄像头监控
     bool m_enable_camera = false;
 
+    // 变道是否要确认?
+    bool m_need_ensure_when_change_line = false;
+
     // 是否debug
-    bool m_enable_debug = false;
+    bool m_enable_debug = true;
 
     // 上一次打印的计数器
     uint32_t m_last_print_counter = 0;
