@@ -23,6 +23,9 @@ struct FSDHandler {
     }
 
     void HandleMessage(can_frame &frame) {
+        if (frame.can_dlc < 8)
+            return;
+
         // 当前挡路限速
         if (frame.can_id == 0x399) {
             m_speed_limit = (frame.data[1] & 0x1F) * 5;
@@ -81,12 +84,18 @@ struct FSDHandler {
             }
             else {
                 switch (m_follow_distance) {
-                    case 1: m_speed_profile = 3; break;
-                    case 2: m_speed_profile = 2; break;
-                    case 3: m_speed_profile = 1; break;
-                    case 4: m_speed_profile = 0; break;
-                    case 5: m_speed_profile = 4; break;
-                    default: m_speed_profile = 4; break;
+                    case 1:
+                        m_speed_profile = 3; break;
+                    case 2:
+                        m_speed_profile = 2; break;
+                    case 3:
+                        m_speed_profile = 1; break;
+                    case 4:
+                        m_speed_profile = 0; break;
+                    case 5:
+                        m_speed_profile = 4; break;
+                    default:
+                        m_speed_profile = 4; break;
                 }
             }
 
@@ -179,9 +188,11 @@ struct FSDHandler {
             // index 1: Nag suppression message (HW3)
             if (index == 1) {
                 // 手握方向盘提醒
-                SetBit(frame, 17, false); // ← NAG SUPPRESSION Clears the hands-on-wheel nag / attention bit
+                SetBit(frame, 17, true); //  ← 告知车机驾驶员在看路
+                SetBit(frame, 19, false); // ← NAG SUPPRESSION Clears the hands-on-wheel nag / attention bit
 
                 // 禁用驾驶室内摄像头
+                // 如果打开了驶出超车道，暗含着打开了摄像头监控
                 SetBit(frame, 43, m_shichuchaochedao_bit);
 
                 // 轨道和目标标签
@@ -189,7 +200,7 @@ struct FSDHandler {
 
                 // if (m_use_hw4_code)
                 // UI_hardCoreSummon
-                SetBit(frame, 47, true); // Extra bit set only on HW4
+                // SetBit(frame, 47, true); // Extra bit set only on HW4
 
                 // 39
                 // UI_factorySummonEnable
@@ -231,52 +242,57 @@ struct FSDHandler {
 
             if (m_enable_debug)
                 m_frame_to_debug_vec_for_0x3DF[index] = frame;
-
-            if (m_enable_debug && index == 2) {
-                Serial.printf(
-                    "FSDHandler: FSDEnable: %d(HW4Code:%s), Follow:%d,Profile:%d,Offset: %d, SpeedLimit:%d,TargetSpeed: %d,Camera:%d\n",
-                    m_is_fsd_enabled,
-                    m_use_hw4_code ? "Yes" : "No",
-                    m_follow_distance,
-                    m_speed_profile,
-                    m_speed_offset,
-                    m_speed_limit,
-                    m_target_speed,
-                    m_shichuchaochedao_bit);
-
-                // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3DF[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[2]).c_str());
-                // Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x3F8[0]).c_str());
-            }
         }
 
 #define CAN_ID_EPAS_STATUS    0x370  // 880 - EPAS3P_sysStatus (nag killer target)
         if (frame.can_id == CAN_ID_EPAS_STATUS) {
-            if (frame.can_dlc < 8) return;
-
             // only act when handsOnLevel == 0 (no hands detected)
-            uint8_t hands_on = (frame.data[4] >> 6) & 0x03;
+            uint8_t hands_on = frame.data[4] >> 6 & 0x03;
             if(hands_on != 0) return;
-            //Serial.printf("1");
 
-            //m_frame_to_debug_vec[0] = frame;
+            can_frame echo;
+            memset(&echo, 0, sizeof(can_frame));
 
-            // 0:11 f5  7 bd 20 1b 2e a6
-            // 0:11 f5  7 bd 20 1b 2e a6
-            // 0:11 ff  7 b9 1f 47 23 cc
-            // 0:11 ff  7 b9 1f 47 23 cc
-            // 0:12  b  8 55 20  a 23 3a
-            // 0:12  b  8 55 20  a 23 3a
-            //
-            // if (m_index_use_counter ++ >= 1000) {
-            //     m_index_to_use += 1;
-            //     m_index_use_counter = 0;
-            // }
-            //
-            // for (int i = 0; i < 8; ++i)
-            //     frame.data[i] = m_to_use_data[m_index_to_use % 3][i];
-            //
-            // m_frame_to_debug[0] = frame;
-            // mcp->sendMessage(&frame);
+            echo.can_id = 880;
+            echo.can_dlc = 8;
+
+            echo.data[0] = frame.data[0];
+            echo.data[1] = frame.data[1];
+            echo.data[2] = (frame.data[2] & 0xF0) | 0x08;
+            echo.data[5] = frame.data[5];
+
+            // Fixed torque = 1.80 Nm (tRaw = 0x08B6)
+            echo.data[3] = 0xB6;
+
+            // handsOnLevel = 1
+            echo.data[4] = frame.data[4] | 0x40;
+
+            // Counter + 1
+            uint8_t cnt = (frame.data[6] & 0x0F);
+            cnt = (cnt + 1) & 0x0F;
+            echo.data[6] = (frame.data[6] & 0xF0) | cnt;
+
+            // Checksum: sum(byte0..byte6) + 0x73
+            uint16_t sum = echo.data[0] + echo.data[1] + echo.data[2] + echo.data[3] + echo.data[4] + echo.data[5] + echo.data[6];
+            echo.data[7] = static_cast<uint8_t>((sum + 0x73) & 0xFF);
+
+            mcp->sendMessage(&frame);
+        }
+
+        if (m_enable_debug && m_last_print_counter++ % 500 == 0) {
+            Serial.printf(
+                "FSD: %d(HW4Code:%s),Follow:%d,Profile:%d,Offset:%d,SpeedLimit:%d,TargetSpeed: %d,Camera:%d\n",
+                m_is_fsd_enabled,
+                m_use_hw4_code ? "Yes" : "No",
+                m_follow_distance,
+                m_speed_profile,
+                m_speed_offset,
+                m_speed_limit,
+                m_target_speed,
+                m_shichuchaochedao_bit);
+
+            // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3DF[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[2]).c_str());
+            // Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x3F8[0]).c_str());
         }
     }
 
@@ -400,6 +416,9 @@ private:
 
     // 是否debug
     bool m_enable_debug = false;
+
+    // 上一次打印的计数器
+    uint32_t m_last_print_counter = 0;
 };
 
 std::unique_ptr<FSDHandler> handler;

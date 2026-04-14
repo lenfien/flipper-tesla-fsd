@@ -171,7 +171,6 @@ struct HW3Handler : public CarManagerBase
                     framesSent++;
                     driver.send(frame);
                 }
-                setBit(frame, 43, false);
             }
             if (index == 2 && FSDEnabled)
             {
