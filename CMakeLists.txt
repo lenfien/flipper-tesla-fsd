@@ -10,4 +10,6 @@ file(GLOB SRC_FILES
         *.cpp *.h *.c
 )
 
+INCLUDE_DIRECTORIES(my)
+
 add_library(flipper-tesla-fsd STATIC ${SRC_FILES})
