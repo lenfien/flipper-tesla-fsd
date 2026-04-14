@@ -19,16 +19,6 @@ inline uint8_t readMuxID(const can_frame &frame) {
     return frame.data[0] & 0x07;
 }
 
-inline bool isFSDSelectedInUI(const can_frame &frame) {
-    return true;
-    //return (frame.data[4] >> 6) & 0x01;
-}
-
-inline void setSpeedProfileV12V13(can_frame &frame, int profile) {
-    frame.data[6] &= ~0x06;
-    frame.data[6] |= (profile << 1);
-}
-
 // ===================================================================
 // setBit helper: flips a specific bit inside the 8-byte CAN payload
 // ===================================================================
@@ -66,7 +56,7 @@ struct FSDHandler {
             // 如果在界面上选择0，那就用HW4的代码
             m_use_hw4_code = m_speed_rule_selected == 0;
 
-            //
+            // 如果不是使用HW4的代码，那么就使用HW3的代码
             if (!m_use_hw4_code) {
                 switch (m_follow_distance) {
                     case 1:
