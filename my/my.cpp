@@ -105,29 +105,31 @@ struct FSDHandler {
             m_speed_offset_raw_last_calc = m_speed_offset_raw;
             m_speed_limit_last_calc = m_speed_limit;
 
+            int max_offset = m_use_hw4_code ? 30 : 120;
+
             // 偏移模式是固定速度
             if ((0b10000000 & m_speed_offset_raw) == 0) {
                 m_speed_offset_v2 = 0x7F & m_speed_offset_raw; // 10 - 60 - 120
-                m_speed_offset_v2 = Rerange(Clamp(m_speed_offset_v2, 60, 80), 60, 80, 0, 120);
+                m_speed_offset_v2 = Rerange(Clamp(m_speed_offset_v2, 60, 80), 60, 80, 0, max_offset);
             }
             // 偏移模式是百分比
             else {
                 m_speed_offset_v2 = 0x7F & m_speed_offset_raw; // 10 - 60 - 120
-                m_speed_offset_v2 = Rerange(Clamp(m_speed_offset_v2, 60, 120), 60, 120, 0, 120);
+                m_speed_offset_v2 = Rerange(Clamp(m_speed_offset_v2, 60, 120), 60, 120, 0, max_offset);
             }
 
             // 如果速度在UI上选择为0，表示希望使用自动限速
             if (m_speed_offset_v2 == 0 && m_speed_limit > 0) {
                 if (m_speed_limit <= 30)
-                    m_target_speed = 30;
+                    m_target_speed = 35;
                 else if (m_speed_limit < 40)
-                    m_target_speed = 40;
+                    m_target_speed = 45;
                 else if (m_speed_limit < 50)
-                    m_target_speed = 50;
+                    m_target_speed = 55;
                 else if (m_speed_limit <= 60)
                     m_target_speed = 70;
                 else if (m_speed_limit < 80)
-                    m_target_speed = 80;
+                    m_target_speed = 85;
                 else if (m_speed_limit == 80)
                     m_target_speed = 90;
                 else if (m_speed_limit <= 90)
@@ -178,6 +180,11 @@ struct FSDHandler {
 
     void
     Handle_0x3FD_Mux1(can_frame & frame) {
+        m_biandao_tixing_zhendong = frame.data[4] & 0b00000001;
+        m_biandao_tixing_fengming = frame.data[4] & 0b00100000;
+
+        m_enable_debug = m_biandao_tixing_zhendong;
+
         // 禁用Nag
         SetBit(frame, 19, false);
         SetBit(frame, 46, true);
@@ -228,9 +235,7 @@ struct FSDHandler {
             frame.data[7] |= (m_speed_profile_for_hw4 & 0x07) << 4;
 
             // offset
-            uint8_t off = m_speed_offset;
-            if (off > 0)
-                frame.data[1] = (frame.data[1] & 0xC0) | (off & 0x3F);
+            frame.data[1] = (frame.data[1] & 0xC0) | (m_speed_offset & 0x3F);
         }
 
         // m_frame_to_debug[index] = frame;
@@ -323,19 +328,19 @@ struct FSDHandler {
         }
 
         if (m_enable_debug && m_last_print_counter++ % 1000 == 0) {
-            Serial.printf(
-                "FSD: %d(HW4Code:%s),Follow:%d,ProfileHW3:%d, ProfileHW4:%d,Offset:%d,SpeedLimit:%d,TargetSpeed:%d,Camera:%d\n",
-                m_is_fsd_enabled,
-                m_use_hw4_code ? "Yes" : "No",
-                m_follow_distance,
-                m_speed_profile_for_hw3,
-                m_speed_profile_for_hw4,
-                m_speed_offset,
-                m_speed_limit,
-                m_target_speed,
-                m_enable_camera);
+            // Serial.printf(
+            //     "FSD: %d(HW4Code:%s),Follow:%d,ProfileHW3:%d, ProfileHW4:%d,Offset:%d,SpeedLimit:%d,TargetSpeed:%d,Camera:%d\n",
+            //     m_is_fsd_enabled,
+            //     m_use_hw4_code ? "Yes" : "No",
+            //     m_follow_distance,
+            //     m_speed_profile_for_hw3,
+            //     m_speed_profile_for_hw4,
+            //     m_speed_offset,
+            //     m_speed_limit,
+            //     m_target_speed,
+            //     m_enable_camera);
 
-            // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3DF[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[2]).c_str());
+             Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3DF[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[2]).c_str());
             // Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x3F8[0]).c_str());
             // Serial.printf("0x3F8: from %s, to %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x370[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x370[1]).c_str());
         }
@@ -377,7 +382,9 @@ private:
             return 0;
 
         int rawPercent = (targetSpeed - speedLimit) * 100 / speedLimit;
-        return Rerange(Clamp(rawPercent, 0, 60), 0, 60, 0, 240);
+        if (!m_use_hw4_code)
+            return Rerange(Clamp(rawPercent, 0, 60), 0, 60, 0, 240);
+        return Rerange(Clamp(rawPercent, 0, 60), 0, 60, 0, 60);
     }
 
     int
@@ -485,6 +492,10 @@ private:
 
     // 变道是否要确认?
     bool m_need_ensure_when_change_line = false;
+
+    // 变道提醒震动和蜂鸣
+    bool m_biandao_tixing_zhendong = false;
+    bool m_biandao_tixing_fengming = false;
 
     // 是否debug
     bool m_enable_debug = true;
