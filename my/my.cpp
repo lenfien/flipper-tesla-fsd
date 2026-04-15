@@ -127,11 +127,11 @@ struct FSDHandler {
             SetBit(frame, 60, true); // Additional HW4-specific FSD bit
 
         // 打开紧急车辆检测
-        // if (m_use_hw4_code)
-        //    SetBit(frame, 59, true);
+        if (m_use_hw4_code)
+            SetBit(frame, 59, true);
 
         // HW3 的 Profile
-        if (!m_use_hw4_code) {
+        if (!m_use_hw4_code || m_use_hw3_profile_when_hw4) {
             frame.data[6] &= ~0x06;
             frame.data[6] |= (m_speed_profile_for_hw4 << 1);
         }
@@ -154,8 +154,14 @@ struct FSDHandler {
         m_biandao_tixing_zhendong = frame.data[4] & 0b00000001;
         m_biandao_tixing_fengming = frame.data[4] & 0b00100000;
 
-        if (m_biandao_tixing_zhendong)
+        if (m_biandao_tixing_fengming && m_biandao_tixing_zhendong) {
             m_use_hw4_code = true;
+            m_use_hw3_profile_when_hw4 = true;
+        }
+        else if (m_biandao_tixing_zhendong) {
+            m_use_hw4_code = true;
+            m_use_hw3_profile_when_hw4 = true;
+        }
         else
             m_use_hw4_code = false;
 
@@ -445,6 +451,7 @@ private:
     int m_speed_profile_for_hw4 = 1;
 
     bool m_use_hw4_code = true;
+    bool m_use_hw3_profile_when_hw4 = false;
 
     std::vector<can_frame> m_frame_to_debug_vec_for_0x3DF;
     std::vector<can_frame> m_frame_to_debug_vec_for_0x3F8;
