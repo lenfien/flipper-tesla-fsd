@@ -38,27 +38,23 @@ struct FSDHandler {
 
     void
     Handle_0x3F8(can_frame& frame) {
-        // 是否跟随导航驾驶已经开启
-        // 用这个来决定是否开启FSD
-        m_is_fsd_enabled = (frame.data[1] & 0b00100000) != 0;
-
         // 跟随距离设置 1 - 6
         m_follow_distance = (frame.data[5] & 0b11100000) >> 5;
 
         // 在导航驾驶里面选择的速度类型 0 - 2
         m_speed_rule_selected = ((frame.data[6] & 0b00001100) >> 2);
 
-        // 实处chaoche到
-        // m_shichuchaochedao_bit = ((frame.data[6] & 0b01000000) == 0);
-        // m_use_hw4_code = ((frame.data[6] & 0b01000000) == 0);
-        m_shichuchaochedao_bit = ((frame.data[6] & 0b01000000) == 0);
+        // m_is_fsd_enabled = (frame.data[1] & 0b00100000) != 0;
+        m_is_fsd_enabled = m_speed_rule_selected > 0;
+
         m_need_ensure_when_change_line = ((frame.data[0] & 0b00000010) != 0);
+        m_shichuchaochedao_bit = ((frame.data[6] & 0b01000000) == 0);
 
         // 是否打开内相机，使用变道确认
-        m_enable_camera = m_need_ensure_when_change_line;
+        m_enable_camera = m_shichuchaochedao_bit;
 
         // hw4 使用使出超车道控制
-        m_use_hw4_code = m_shichuchaochedao_bit;
+        m_use_hw4_code = m_need_ensure_when_change_line;
 
         // 如果在界面上选择0，那就用HW4的代码
         // m_use_hw4_code = m_speed_rule_selected == 0;
@@ -74,6 +70,8 @@ struct FSDHandler {
                     m_speed_profile_for_hw3 = m_speed_rule_selected - 1;
                     break;
             }
+
+            m_speed_profile_for_hw3 = Clamp(m_speed_rule_selected - 1, 0, 2);
 
             switch (m_follow_distance) {
                 case 1:
@@ -101,51 +99,28 @@ struct FSDHandler {
         // 速度偏移的原始值
         m_speed_offset_raw = frame.data[3];
 
-        if (m_speed_offset_raw != m_speed_offset_raw_last_calc || m_speed_limit != m_speed_limit_last_calc) {
-            m_speed_offset_raw_last_calc = m_speed_offset_raw;
-            m_speed_limit_last_calc = m_speed_limit;
+        // 选择固定速度的，就代表用auto mode
+        m_use_speed_offset_auto = (0b10000000 & m_speed_offset_raw) == 0;
+        m_speed_offset_raw &= 0b01111111;
 
-            int max_offset = m_use_hw4_code ? 30 : 120;
-
-            // 偏移模式是固定速度
-            if ((0b10000000 & m_speed_offset_raw) == 0) {
-                m_speed_offset_v2 = 0x7F & m_speed_offset_raw; // 10 - 60 - 120
-                m_speed_offset_v2 = Rerange(Clamp(m_speed_offset_v2, 60, 80), 60, 80, 0, max_offset);
-            }
-            // 偏移模式是百分比
-            else {
-                m_speed_offset_v2 = 0x7F & m_speed_offset_raw; // 10 - 60 - 120
-                m_speed_offset_v2 = Rerange(Clamp(m_speed_offset_v2, 60, 120), 60, 120, 0, max_offset);
-            }
-
-            // 如果速度在UI上选择为0，表示希望使用自动限速
-            if (m_speed_offset_v2 == 0 && m_speed_limit > 0) {
-                if (m_speed_limit <= 30)
-                    m_target_speed = 35;
-                else if (m_speed_limit < 40)
-                    m_target_speed = 45;
-                else if (m_speed_limit < 50)
-                    m_target_speed = 55;
-                else if (m_speed_limit <= 60)
-                    m_target_speed = 70;
-                else if (m_speed_limit < 80)
-                    m_target_speed = 85;
-                else if (m_speed_limit == 80)
-                    m_target_speed = 90;
-                else if (m_speed_limit <= 90)
-                    m_target_speed = 100;
-                else if (m_speed_limit <= 100)
-                    m_target_speed = 110;
-                else if (m_speed_limit < 120)
-                    m_target_speed = 120;
-                else
-                    m_target_speed = 130;
-
-                m_speed_offset_v2 = CalcAutoCANOffset(m_target_speed);
-            }
-
-            m_speed_offset = m_speed_offset_v2;
+        // 偏移模式是固定速度
+        // 偏移模式是百分比
+        if (!m_use_speed_offset_auto)
+            m_target_offset_percent = Rerange(Clamp(m_speed_offset_raw, 60, 120), 60, 120, 0, 30);
+        else {
+            if (m_speed_limit <= 40)
+                m_target_offset_percent = 50;
+            else if (m_speed_limit <= 60)
+                m_target_offset_percent = 30;
+            else if (m_speed_limit <= 80)
+                m_target_offset_percent = 20;
+            else if (m_speed_limit <= 100)
+                m_target_offset_percent = 10;
+            else
+                m_target_offset_percent = 5;
         }
+
+        m_speed_offset = m_use_hw4_code ? m_target_offset_percent : Rerange(m_target_offset_percent, 0, 60, 0, 240);
 
         // 打开FSD
         SetBit(frame, 46, true); // FSD enable / activation bit
@@ -155,12 +130,11 @@ struct FSDHandler {
             SetBit(frame, 60, true); // Additional HW4-specific FSD bit
 
         // 打开紧急车辆检测
-        if (m_use_hw4_code)
-            SetBit(frame, 59, true);
+        // if (m_use_hw4_code)
+        //    SetBit(frame, 59, true);
 
         // HW3 的 Profile
-        if (!m_use_hw4_code)
-        {
+        if (!m_use_hw4_code) {
             frame.data[6] &= ~0x06;
             frame.data[6] |= (m_speed_profile_for_hw4 << 1);
         }
@@ -182,8 +156,7 @@ struct FSDHandler {
     Handle_0x3FD_Mux1(can_frame & frame) {
         m_biandao_tixing_zhendong = frame.data[4] & 0b00000001;
         m_biandao_tixing_fengming = frame.data[4] & 0b00100000;
-
-        m_enable_debug = m_biandao_tixing_zhendong;
+        // m_enable_debug = m_biandao_tixing_zhendong;
 
         // 禁用Nag
         SetBit(frame, 19, false);
@@ -244,7 +217,7 @@ struct FSDHandler {
 
     void
     Handle_880(can_frame & frame) {
-        // return;
+        return;
         // 0x3F8: 0:00010001;8:11101101;16:00000111;24:10100000;32:01100000;40:00001011;48:00101000;56:10101011;
 
         if (m_enable_debug)
@@ -287,7 +260,8 @@ struct FSDHandler {
             m_frame_to_debug_vec_for_0x370[1] = echo;
     }
 
-    void HandleMessage(can_frame &frame) {
+    void
+    HandleMessage(can_frame &frame) {
         if (frame.can_dlc < 8)
             return;
 
@@ -296,12 +270,15 @@ struct FSDHandler {
                 Handle_0x399(frame);
                 break;
             case 787:
-                Handle_787(frame);
+                // Handle_787(frame);
                 break;
             case 0x3F8:
                 Handle_0x3F8(frame);
                 break;
             case 0x3FD: {
+                if (!m_is_fsd_enabled)
+                    break;
+
                 auto index = ReadMuxID(frame);
 
                 if (m_enable_debug)
@@ -323,24 +300,25 @@ struct FSDHandler {
                 break;
             }
             case 880:
-                Handle_880(frame);
+                //Handle_880(frame);
                 break;
         }
 
         if (m_enable_debug && m_last_print_counter++ % 1000 == 0) {
-            // Serial.printf(
-            //     "FSD: %d(HW4Code:%s),Follow:%d,ProfileHW3:%d, ProfileHW4:%d,Offset:%d,SpeedLimit:%d,TargetSpeed:%d,Camera:%d\n",
-            //     m_is_fsd_enabled,
-            //     m_use_hw4_code ? "Yes" : "No",
-            //     m_follow_distance,
-            //     m_speed_profile_for_hw3,
-            //     m_speed_profile_for_hw4,
-            //     m_speed_offset,
-            //     m_speed_limit,
-            //     m_target_speed,
-            //     m_enable_camera);
+            Serial.printf(
+                "FSD: %d(HW%d),Follow:%d,Profile(3:%d|4:%d),SpeedLimit:%d,TOffsetPercent:%d,Offset:%d,UseAutoOffset:%d,Camera:%d\n",
+                m_is_fsd_enabled,
+                m_use_hw4_code ? 4 : 3,
+                m_follow_distance,
+                m_speed_profile_for_hw3,
+                m_speed_profile_for_hw4,
+                m_speed_limit,
+                m_speed_offset,
+                m_target_offset_percent,
+                m_use_speed_offset_auto,
+                m_enable_camera);
 
-             Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3DF[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[2]).c_str());
+            // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3DF[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[2]).c_str());
             // Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x3F8[0]).c_str());
             // Serial.printf("0x3F8: from %s, to %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x370[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x370[1]).c_str());
         }
@@ -358,7 +336,7 @@ private:
         return b;
     }
 
-    int
+    inline int
     Clamp(int value, int min, int max) {
         if (value < min)
             return min;
@@ -367,7 +345,7 @@ private:
         return value;
     }
 
-    int
+    inline int
     Rerange(int value, int min, int max, int t_min, int t_max) {
         int t_len = t_max - t_min;
         int len = max - min;
@@ -376,7 +354,7 @@ private:
     }
 
     // 根据目标速度和当前限速，计算出应该把车机设置为多少的限速百分比
-    int
+    inline int
     CalcPercent(int targetSpeed, int speedLimit) {
         if (targetSpeed <= speedLimit)
             return 0;
@@ -384,10 +362,11 @@ private:
         int rawPercent = (targetSpeed - speedLimit) * 100 / speedLimit;
         if (!m_use_hw4_code)
             return Rerange(Clamp(rawPercent, 0, 60), 0, 60, 0, 240);
-        return Rerange(Clamp(rawPercent, 0, 60), 0, 60, 0, 60);
+
+        return Clamp(rawPercent, 0, 60), 0, 60, 0, 60;
     }
 
-    int
+    inline int
     CalcAutoCANOffset(int targetSpeed) {
         if (m_speed_limit == 0)
             return 0;
@@ -446,10 +425,10 @@ private:
 private:
     uint m_speed_offset = 0;
 
+    bool m_use_speed_offset_auto = false;
     uint8_t m_speed_offset_raw = 0;
     uint8_t m_speed_offset_raw_last_calc = 0;
     int m_speed_limit = 0;
-    int m_speed_limit_last_calc = 0;
 
     int m_speed_offset_v2 = 0;
 
@@ -457,12 +436,12 @@ private:
     int32_t m_speed_rule_selected = 0;
 
     bool m_is_fsd_enabled = false;
-    int m_target_speed = 0;
+    int m_target_offset_percent = 0;
 
     int m_speed_profile_for_hw3 = 1;
     int m_speed_profile_for_hw4 = 1;
 
-    bool m_use_hw4_code = false;
+    bool m_use_hw4_code = true;
 
     std::vector<can_frame> m_frame_to_debug_vec_for_0x3DF;
     std::vector<can_frame> m_frame_to_debug_vec_for_0x3F8;
@@ -498,7 +477,7 @@ private:
     bool m_biandao_tixing_fengming = false;
 
     // 是否debug
-    bool m_enable_debug = true;
+    bool m_enable_debug = false;
 
     // 上一次打印的计数器
     uint32_t m_last_print_counter = 0;
