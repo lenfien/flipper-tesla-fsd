@@ -23,12 +23,12 @@ struct FSDHandler {
         m_frame_to_debug_vec_for_0x370.resize(5);
     }
 
-    void
+    __attribute__((optimize("O3"))) void
     Handle_0x399(can_frame &frame) {
         m_speed_limit = (frame.data[1] & 0x1F) * 5;
     }
 
-    void
+    __attribute__((optimize("O3"))) void
     Handle_787(can_frame& frame) {
         frame.data[0] &= static_cast<uint8_t>(~0x03);
         frame.data[0] |= static_cast<uint8_t>(0x01);
@@ -36,7 +36,7 @@ struct FSDHandler {
         mcp->sendMessage(&frame);
     }
 
-    void
+    __attribute__((optimize("O3")))  void
     Handle_0x3F8(can_frame& frame) {
         // 跟随距离设置 1 - 6
         m_follow_distance = (frame.data[5] & 0b11100000) >> 5;
@@ -54,10 +54,7 @@ struct FSDHandler {
         m_enable_camera = m_shichuchaochedao_bit;
 
         // hw4 使用使出超车道控制
-        m_use_hw4_code = m_need_ensure_when_change_line;
-
-        // 如果在界面上选择0，那就用HW4的代码
-        // m_use_hw4_code = m_speed_rule_selected == 0;
+        // m_use_hw4_code = m_need_ensure_when_change_line;
 
         // 如果不是使用HW4的代码，那么就使用HW3的代码
         // speed profile
@@ -93,7 +90,7 @@ struct FSDHandler {
             m_frame_to_debug_vec_for_0x3F8[0] = frame;
     }
 
-    void
+    __attribute__((optimize("O3"))) void
     Handle_0x3FD_Mux0(can_frame & frame) {
         // 计算限速
         // 速度偏移的原始值
@@ -140,23 +137,27 @@ struct FSDHandler {
         }
 
         // FSD 停车/停点控制相关开关
-        SetBit(frame, 38, true);
-
-        // HOV 相关开关，通常可理解为多人乘员车道/拼车道策略
-        SetBit(frame, 3, true);
-
-        // FSD 可视化显示开关
-        SetBit(frame, 37, true);
+        // SetBit(frame, 38, true);
+        //
+        // // HOV 相关开关，通常可理解为多人乘员车道/拼车道策略
+        // SetBit(frame, 3, true);
+        //
+        // // FSD 可视化显示开关
+        // SetBit(frame, 37, true);
 
         // 发送
         mcp->sendMessage(&frame);
     }
 
-    void
+    __attribute__((optimize("O3"))) void
     Handle_0x3FD_Mux1(can_frame & frame) {
         m_biandao_tixing_zhendong = frame.data[4] & 0b00000001;
         m_biandao_tixing_fengming = frame.data[4] & 0b00100000;
-        // m_enable_debug = m_biandao_tixing_zhendong;
+
+        if (m_biandao_tixing_zhendong)
+            m_use_hw4_code = true;
+        else
+            m_use_hw4_code = false;
 
         // 禁用Nag
         SetBit(frame, 19, false);
@@ -166,11 +167,10 @@ struct FSDHandler {
             SetBit(frame, 47, true); // Extra bit set only on HW4
 
         // 禁用驾驶室内摄像头
-        // 如果打开了驶出超车道，暗含着打开了摄像头监控
         SetBit(frame, 43, m_enable_camera);
 
         // 手握方向盘提醒
-        SetBit(frame, 17, true); //  ← 告知车机驾驶员在看路
+        // SetBit(frame, 17, true); //  ← 告知车机驾驶员在看路
 
         //
         // // 39
@@ -187,35 +187,38 @@ struct FSDHandler {
 
         //
         // UI_enableMapStops 20
-        SetBit(frame, 20, true);
+        // SetBit(frame, 20, true);
 
         // 发送
         mcp->sendMessage(&frame);
     }
 
-    void
+    __attribute__((optimize("O3"))) void
     Handle_0x3FD_Mux2(can_frame & frame) {
 
-        if (!m_use_hw4_code) { // HW3 offset
+        // HW3 offset
+        if (!m_use_hw4_code) {
             frame.data[0] &= ~(0b11000000);
             frame.data[1] &= ~(0b00111111);
             frame.data[0] |= (m_speed_offset & 0x03) << 6;
             frame.data[1] |= (m_speed_offset >> 2);
         }
-        else {
-            // profile
+
+        // HW4 Offset
+        if (m_use_hw4_code) {
             frame.data[7] &= ~(0x07 << 4);
             frame.data[7] |= (m_speed_profile_for_hw4 & 0x07) << 4;
-
-            // offset
-            frame.data[1] = (frame.data[1] & 0xC0) | (m_speed_offset & 0x3F);
         }
+
+        // HW4 offset
+        if (m_use_hw4_code)
+            frame.data[1] = (frame.data[1] & 0xC0) | (m_speed_offset & 0x3F);
 
         // m_frame_to_debug[index] = frame;
         mcp->sendMessage(&frame);
     }
 
-    void
+    __attribute__((optimize("O3"))) void
     Handle_880(can_frame & frame) {
         return;
         // 0x3F8: 0:00010001;8:11101101;16:00000111;24:10100000;32:01100000;40:00001011;48:00101000;56:10101011;
@@ -260,7 +263,7 @@ struct FSDHandler {
             m_frame_to_debug_vec_for_0x370[1] = echo;
     }
 
-    void
+    __attribute__((optimize("O3"))) void
     HandleMessage(can_frame &frame) {
         if (frame.can_dlc < 8)
             return;
@@ -326,7 +329,7 @@ struct FSDHandler {
 
     // 工具函数
 private:
-    std::string
+    __attribute__((optimize("O3"))) std::string
     ToBinaryString(uint8_t i) {
         std::string b;
         b.reserve(8);
@@ -336,7 +339,7 @@ private:
         return b;
     }
 
-    inline int
+    __attribute__((optimize("O3"))) inline int
     Clamp(int value, int min, int max) {
         if (value < min)
             return min;
@@ -345,7 +348,7 @@ private:
         return value;
     }
 
-    inline int
+    __attribute__((optimize("O3"))) inline int
     Rerange(int value, int min, int max, int t_min, int t_max) {
         int t_len = t_max - t_min;
         int len = max - min;
@@ -354,7 +357,7 @@ private:
     }
 
     // 根据目标速度和当前限速，计算出应该把车机设置为多少的限速百分比
-    inline int
+    __attribute__((optimize("O3"))) inline int
     CalcPercent(int targetSpeed, int speedLimit) {
         if (targetSpeed <= speedLimit)
             return 0;
@@ -366,14 +369,14 @@ private:
         return Clamp(rawPercent, 0, 60), 0, 60, 0, 60;
     }
 
-    inline int
+    __attribute__((optimize("O3"))) inline int
     CalcAutoCANOffset(int targetSpeed) {
         if (m_speed_limit == 0)
             return 0;
         return CalcPercent(targetSpeed, m_speed_limit);
     }
 
-    std::string
+    __attribute__((optimize("O3"))) std::string
     ToHexString(const can_frame &frame) {
         std::ostringstream result;
         for (size_t i = 0; i < sizeof(frame.data); ++i)
@@ -381,7 +384,7 @@ private:
         return result.str();
     }
 
-    std::string
+    __attribute__((optimize("O3"))) std::string
     ToBinaryString(const can_frame &frame) {
         std::ostringstream result;
         for (size_t i = 0; i < sizeof(frame.data); ++i)
@@ -390,12 +393,12 @@ private:
         return result.str();
     }
 
-    inline uint8_t
+    __attribute__((optimize("O3"))) inline uint8_t
     ReadMuxID(const can_frame &frame) {
         return frame.data[0] & 0x07;
     }
 
-    inline void
+    __attribute__((optimize("O3"))) inline void
     SetBit(can_frame &frame, int bit, bool value) {
         int byteIndex = bit / 8;
         int bitIndex = bit % 8;
@@ -407,7 +410,7 @@ private:
             frame.data[byteIndex] &= static_cast<uint8_t>(~mask);
     }
 
-    inline uint8_t
+    __attribute__((optimize("O3"))) inline uint8_t
     ComputeVehicleChecksum(const can_frame &frame, uint8_t checksumByteIndex = 7) {
         if (checksumByteIndex >= frame.can_dlc)
             return 0;
@@ -423,7 +426,7 @@ private:
     }
 
 private:
-    uint m_speed_offset = 0;
+    int m_speed_offset = 0;
 
     bool m_use_speed_offset_auto = false;
     uint8_t m_speed_offset_raw = 0;
