@@ -288,7 +288,6 @@ struct FSDHandler {
         echo.data[0] = frame.data[0];
         echo.data[1] = frame.data[1];
         echo.data[2] = (frame.data[2] & 0xF0) | (uint8_t)((torq >> 8) & 0x0F);
-        // Fixed torque = 1.80 Nm (tRaw = 0x08B6)
         echo.data[3] =  (uint8_t)(torq & 0xFF);
         echo.data[4] = frame.data[4] | 0x40;
         echo.data[5] = frame.data[5];
