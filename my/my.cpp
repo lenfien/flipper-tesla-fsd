@@ -16,6 +16,16 @@ bool enablePrint = true;
 
 std::unique_ptr<MCP2515> mcp;
 
+static uint32_t nag_prng_state = 0xDEADBEEF;
+static uint32_t nag_xorshift32(void) {
+    uint32_t x = nag_prng_state;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    nag_prng_state = x;
+    return x;
+}
+
 struct FSDHandler {
     FSDHandler() {
         m_frame_to_debug_vec_for_0x3DF.resize(10);
@@ -167,10 +177,13 @@ struct FSDHandler {
 
         // 禁用Nag
         SetBit(frame, 19, false);
-        SetBit(frame, 46, true);
+
 
         if (m_use_hw4_code)
             SetBit(frame, 47, true); // Extra bit set only on HW4
+
+        // enable EAP/summon
+        SetBit(frame, 46, true);
 
         // 禁用驾驶室内摄像头
         SetBit(frame, 43, m_enable_camera);
@@ -226,8 +239,12 @@ struct FSDHandler {
 
     __attribute__((optimize("O3"))) void
     Handle_880(can_frame & frame) {
-        return;
+        // return;
         // 0x3F8: 0:00010001;8:11101101;16:00000111;24:10100000;32:01100000;40:00001011;48:00101000;56:10101011;
+
+        static int16_t nag_torq_walk = 2230;       // raw starting = 1.80 Nm
+        static uint8_t nag_exc_frames = 0;         // frames in grip excursion
+        static uint16_t nag_frames_until_exc = 175; // frames until next excursion
 
         if (m_enable_debug)
             m_frame_to_debug_vec_for_0x370[0] = frame;
@@ -235,6 +252,32 @@ struct FSDHandler {
         // only act when handsOnLevel == 0 (no hands detected)
         uint8_t hands_on = frame.data[4] >> 6 & 0x03;
         if(hands_on != 0) return;
+        if (m_das_hands_on_state == 0 || m_das_hands_on_state == 8) return;
+
+        // --- Organic torque variation ---
+        // torsionBarTorque encoding: tRaw = (Nm + 20.5) / 0.01
+        // d[2] lower nibble = tRaw >> 8, d[3] = tRaw & 0xFF
+        int16_t torq;
+        if(nag_exc_frames > 0) {
+            // Grip pulse: ~3.20 Nm ± small noise
+            torq = 2350 + (int16_t)((nag_xorshift32() % 41) - 20);
+            nag_exc_frames--;
+        } else {
+            // Normal random walk: step ±15 per frame
+            int16_t step = (int16_t)((nag_xorshift32() % 31) - 15);
+            nag_torq_walk += step;
+            if(nag_torq_walk < 2150) nag_torq_walk = 2150; // min ~1.00 Nm
+            if(nag_torq_walk > 2290) nag_torq_walk = 2290; // max ~2.40 Nm
+            torq = nag_torq_walk;
+
+            // Count down to next grip excursion
+            if(nag_frames_until_exc > 0) {
+                nag_frames_until_exc--;
+            } else {
+                nag_exc_frames = 3 + (nag_xorshift32() % 3); // 3-5 frames
+                nag_frames_until_exc = 125 + (nag_xorshift32() % 100); // 5-9 sec
+            }
+        }
 
         can_frame echo{};
         memset(&echo, 0, sizeof(can_frame));
@@ -244,23 +287,23 @@ struct FSDHandler {
 
         echo.data[0] = frame.data[0];
         echo.data[1] = frame.data[1];
-        echo.data[2] = (frame.data[2] & 0xF0) | 0x08;
-        echo.data[5] = frame.data[5];
-
+        echo.data[2] = (frame.data[2] & 0xF0) | (uint8_t)((torq >> 8) & 0x0F);
         // Fixed torque = 1.80 Nm (tRaw = 0x08B6)
-        echo.data[3] = 0xB6;
-
-        // handsOnLevel = 1
+        echo.data[3] =  (uint8_t)(torq & 0xFF);
         echo.data[4] = frame.data[4] | 0x40;
+        echo.data[5] = frame.data[5];
 
         // Counter + 1
         uint8_t cnt = (frame.data[6] & 0x0F);
         cnt = (cnt + 1) & 0x0F;
         echo.data[6] = (frame.data[6] & 0xF0) | cnt;
 
-        // Checksum: sum(byte0..byte6) + 0x73
-        uint16_t sum = echo.data[0] + echo.data[1] + echo.data[2] + echo.data[3] + echo.data[4] + echo.data[5] + echo.data[6];
-        echo.data[7] = static_cast<uint8_t>((sum + 0x73) & 0xFF);
+        // checksum: sum(byte0..6) + 0x70 + 0x03 (CAN ID 0x370 split)
+        uint16_t sum = 0;
+        for(int i = 0; i < 7; i++)
+            sum += echo.data[i];
+        sum += (880 & 0xFF) + (880 >> 8);
+        echo.data[7] = (uint8_t)(sum & 0xFF);
 
         // 发送
         mcp->sendMessage(&echo);
@@ -309,8 +352,12 @@ struct FSDHandler {
                 break;
             }
             case 880:
-                //Handle_880(frame);
+                Handle_880(frame);
                 break;
+            case 0x39B: {
+                m_das_hands_on_state = (frame.data[5] >> 2) & 0x0F;
+                break;
+            }
         }
 
         if (m_enable_debug && m_last_print_counter++ % 1000 == 0) {
@@ -491,6 +538,8 @@ private:
 
     // 上一次打印的计数器
     uint32_t m_last_print_counter = 0;
+
+    int32_t m_das_hands_on_state = 0;
 };
 
 std::unique_ptr<FSDHandler> handler;
