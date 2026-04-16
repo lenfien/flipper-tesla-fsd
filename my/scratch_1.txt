@@ -1,0 +1,82 @@
+BO_ 1021 ID3FDUI_autopilotControl: 8 ChassisBus
+ SG_ UI_autopilotControlIndex M : 0|3@1+ (1,0) [0|7] ""  Receiver
+ SG_ UI_hovEnabled m0 : 3|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_donDisableAutoWiperDuration m0 : 4|3@1+ (1,0) [0|6] ""  Receiver
+ SG_ UI_donDisableOnAutoWiperSpeed m0 : 7|4@1+ (1,0) [0|15] ""  Receiver
+ SG_ UI_blindspotMinSpeed m0 : 11|4@1+ (1,0) [0|10] ""  Receiver
+ SG_ UI_blindspotDistance m0 : 15|3@1+ (1,0) [0|5] ""  Receiver
+ SG_ UI_blindspotTTC m0 : 18|3@1+ (1,0) [0|7] ""  Receiver
+ SG_ UI_donStopEndOfRampBuffer m0 : 21|3@1+ (1,0) [0|4] ""  Receiver
+ SG_ UI_donDisableCutin m0 : 24|1@1+ (1,0) [0|1] ""  Receiver
+     UI_smartSetSpeedOffset | 1
+     UI_smartSetSpeedOffsetType | 1 [0|1]
+     UI_autopilotMonarchBackup
+ SG_ UI_fsdVisualizationEnabled m0 : 37|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_fsdStopsControlEnabled m0 : 38|1@1+ (1,0) [0|1] ""  Receiver
+     UI_fsdContinueOnGreenWithCIPV
+     UI_smartSetSpeed
+     UI_automaticSetSpeedOffset
+     UI_apply2021_1958_ISA
+     UI_apply2021_646_ELKS
+     UI_apply2021_1341_DDAW
+ SG_ UI_homelinkNearby m0 : 45|1@1+ (1,0) [0|1] ""  Receiver
+     UI_enableFullSelfDriving : 46|1@1+ (1,0) [0|1] ""  Receiver
+     UI_hasFullSelfDriving : 47|1@1+ (1,0) [0|1] ""  Receiver
+     UI_autosteerActivation 48|1@1+ (1,0) [0|1] ""  Receiver
+     UI_autopilotDrivingProfile 49|2@1+ (1,0) [0|1] ""  Receiver
+ *    UI_fsdBetaRequest 51|1@1+ (1,0) [0|1] ""  Receiver
+     UI_fullSelfDrivingSuspended
+     UI_disableOptionalLaneChanges
+     UI_applyR152_AEBS
+     UI_autopilotControlMux0Valid
+
+     UI_selectableCameraRequest m1: ?|4
+     UI_overrideSleepWithSuspend
+ SG_ UI_driverMonitorConfirmation m1 : 17|1@1+ (1,0) [0|1] ""  Receiver
+     UI_parkAssistUseVision
+ SG_ UI_applyEceR79 m1 : 19|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_enableMapStops m1 : 20|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_disableMain m1 : 23|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_disableNarrow m1 : 24|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_disableFisheye m1 : 25|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_disableLeftPillar m1 : 26|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_disableRightPillar m1 : 27|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_disableLeftRepeater m1 : 28|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_disableRightRepeater m1 : 29|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_disableBackup m1 : 30|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_disableRadar m1 : 31|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_noStalkConfirmAlertHaptic m1 : 32|1@1+ (1,0) [0|1] ""  Receiver
+     UI_regulatoryLKA
+     UI_regulatoryLaneAssistLevel
+ SG_ UI_ulcSnooze m1 : 36|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_noStalkConfirmAlertChime m1 : 37|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_factorySummonEnable m1 : 39|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_apmv3Branch m1 : 40|3@1+ (1,0) [0|5] ""  Receiver
+ SG_ UI_enableCabinCamera m1 : 43|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_enableAutopilotStopWarning m1 : 44|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_showLaneGraph m1 : 45|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_showTrackLabels m1 : 46|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_hardCoreSummon m1 : 47|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ UI_enableCabinCameraTelemetry m1 : 48|1@1+ (1,0) [0|1] ""  Receiver
+     UI_enableVisionSpeedControl 49|1@1+ (1,0) [0|1] ""  Receiver
+     UI_autopilotTelemetryInChina 50|1@1+ (1,0) [0|1] ""  Receiver
+    ?? UI_enableTeslaAutopark 51|1@1+ (1,0) [0|1] ""  Receiver
+     UI_autoTurnSignalMode 52|1@1+ (1,0) [0|1] ""  Receiver
+     UI_enableCautionLightControl
+     UI_applyEceR79SmartSummonOnly
+     UI_autopilotMonarchEnabled
+     UI_autopilotEphemerisEnabled
+     UI_enableCabinAudioRecording
+     UI_autopilotControlMux1Valid
+
+m2：
+     UI_enableApproachingEmergencyVehicleDetection 3｜1
+     UI_enableStartFsdFromParkBrakeConfirmation 4｜
+     UI_enableStartFsdFromPark 5｜
+     UI_fsdMaxSpeedOffsetPercentage 8|6@1+ (1,0) [] ""  Receiver
+     UI_coldStartMonarchInFactory
+     UI_autopilotControlMux2Valid
+     
+0: 0:00000000  8:00000000  16:00000000  24:10111100  32:00100000  40:00000001  48:00000010  56:10000000
+1: 0:00000001  8:00000000  16:00000110  24:00000000  32:00000000  40:00001000  48:00011010  56:10000000
+2: 0:00000010  8:00000000  16:00000000  24:00000000  32:00000000  40:00000000  48:00000000  56:10000000

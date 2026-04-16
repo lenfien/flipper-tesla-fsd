@@ -114,7 +114,8 @@ struct FSDHandler {
         m_speed_offset_raw &= 0b01111111;
 
         // 打开FSD
-        SetBit(frame, 46, true); // FSD enable / activation bit
+        SetBit(frame, 46, true); // UI_enableFullSelfDriving
+        SetBit(frame, 47, true); // UI_hasFullSelfDriving
 
         // 打开HW4-specific FSD bit
         if (m_use_hw4_code)
@@ -127,7 +128,7 @@ struct FSDHandler {
         // HW3 的 Profile
         if (!m_use_hw4_code || m_use_hw3_profile_when_hw4) {
             frame.data[6] &= ~0x06;
-            frame.data[6] |= (m_speed_profile_for_hw4 << 1);
+            frame.data[6] |= (m_speed_profile_for_hw3 << 1);
         }
 
         // FSD 停车/停点控制相关开关
@@ -165,19 +166,24 @@ struct FSDHandler {
         if (m_use_hw4_code)
             SetBit(frame, 47, true); // Extra bit set only on HW4
 
+        //
+        // UI_enableMapStops 20
+        SetBit(frame, 20, true);
+
         // enable EAP/summon
         SetBit(frame, 46, true);
 
         // 禁用驾驶室内摄像头
         SetBit(frame, 43, m_enable_camera);
 
-        // 手握方向盘提醒
-        // SetBit(frame, 17, true); //  ← 告知车机驾驶员在看路
-
         //
         // // 39
         // // UI_factorySummonEnable
-        // SetBit(frame, 39, true);
+        SetBit(frame, 39, true);
+
+        // 手握方向盘提醒
+        // SetBit(frame, 17, true); //  ← 告知车机驾驶员在看路
+
         //
         // // 打开停止警告
         // // UI_enableAutopilotStopWarning
@@ -187,9 +193,6 @@ struct FSDHandler {
         // 显示车到图
         SetBit(frame, 45, true);
 
-        //
-        // UI_enableMapStops 20
-        SetBit(frame, 20, true);
 
         // 发送
         mcp->sendMessage(&frame);
@@ -225,15 +228,15 @@ struct FSDHandler {
             frame.data[1] |= (m_speed_offset >> 2);
         }
 
+        // HW4 offset
+        if (m_use_hw4_code)
+            frame.data[1] = (frame.data[1] & 0xC0) | (m_speed_offset & 0x3F);
+
         // HW4 profile
         if (m_use_hw4_code) {
             frame.data[7] &= ~(0x07 << 4);
             frame.data[7] |= (m_speed_profile_for_hw4 & 0x07) << 4;
         }
-
-        // HW4 offset
-        if (m_use_hw4_code)
-            frame.data[1] = (frame.data[1] & 0xC0) | (m_speed_offset & 0x3F);
 
         // m_frame_to_debug[index] = frame;
         mcp->sendMessage(&frame);
