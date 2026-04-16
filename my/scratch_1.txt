@@ -13,27 +13,29 @@ BO_ 1021 ID3FDUI_autopilotControl: 8 ChassisBus
      UI_autopilotMonarchBackup
  SG_ UI_fsdVisualizationEnabled m0 : 37|1@1+ (1,0) [0|1] ""  Receiver
  SG_ UI_fsdStopsControlEnabled m0 : 38|1@1+ (1,0) [0|1] ""  Receiver
-     UI_fsdContinueOnGreenWithCIPV
-     UI_smartSetSpeed
-     UI_automaticSetSpeedOffset
-     UI_apply2021_1958_ISA
-     UI_apply2021_646_ELKS
-     UI_apply2021_1341_DDAW
+     UI_fsdContinueOnGreenWithCIPV ：m0 : 39|1@1+ (1,0) [0|1] ""  Receiver
+     UI_smartSetSpeed m0 : 40|1@1+ (1,0) [0|1] ""  Receiver
+     UI_automaticSetSpeedOffset m0 : 41|1@1+ (1,0) [0|1] ""  Receiver
+     UI_apply2021_1958_ISA m0 : 42|1@1+ (1,0) [0|1] ""  Receiver
+     UI_apply2021_646_ELKS m0 : 43|1@1+ (1,0) [0|1] ""  Receiver
+     UI_apply2021_1341_DDAW m0 : 44|1@1+ (1,0) [0|1] ""  Receiver
  SG_ UI_homelinkNearby m0 : 45|1@1+ (1,0) [0|1] ""  Receiver
-     UI_enableFullSelfDriving : 46|1@1+ (1,0) [0|1] ""  Receiver
-     UI_hasFullSelfDriving : 47|1@1+ (1,0) [0|1] ""  Receiver
-     UI_autosteerActivation 48|1@1+ (1,0) [0|1] ""  Receiver
-     UI_autopilotDrivingProfile 49|2@1+ (1,0) [0|1] ""  Receiver
- *    UI_fsdBetaRequest 51|1@1+ (1,0) [0|1] ""  Receiver
+     UI_enableFullSelfDriving m0 : 46|1@1+ (1,0) [0|1] ""  Receiver
+     UI_hasFullSelfDriving m0 : 47|1@1+ (1,0) [0|1] ""  Receiver
+     UI_autosteerActivation m0 48|1@1+ (1,0) [0|1] ""  Receiver
+     UI_autopilotDrivingProfile m0 49|2@1+ (1,0) [0|1] ""  Receiver
+     UI_fsdBetaRequest m0 51|1@1+ (1,0) [0|1] ""  Receiver
      UI_fullSelfDrivingSuspended
      UI_disableOptionalLaneChanges
      UI_applyR152_AEBS
      UI_autopilotControlMux0Valid
 
+----------------------------------------- M1 ---------------------------------------------
+
      UI_selectableCameraRequest m1: ?|4
      UI_overrideSleepWithSuspend
  SG_ UI_driverMonitorConfirmation m1 : 17|1@1+ (1,0) [0|1] ""  Receiver
-     UI_parkAssistUseVision
+     UI_parkAssistUseVision m1 : 18|1@1+ (1,0) [0|1] ""  Receiver
  SG_ UI_applyEceR79 m1 : 19|1@1+ (1,0) [0|1] ""  Receiver
  SG_ UI_enableMapStops m1 : 20|1@1+ (1,0) [0|1] ""  Receiver
  SG_ UI_disableMain m1 : 23|1@1+ (1,0) [0|1] ""  Receiver
@@ -60,7 +62,7 @@ BO_ 1021 ID3FDUI_autopilotControl: 8 ChassisBus
  SG_ UI_enableCabinCameraTelemetry m1 : 48|1@1+ (1,0) [0|1] ""  Receiver
      UI_enableVisionSpeedControl 49|1@1+ (1,0) [0|1] ""  Receiver
      UI_autopilotTelemetryInChina 50|1@1+ (1,0) [0|1] ""  Receiver
-    ?? UI_enableTeslaAutopark 51|1@1+ (1,0) [0|1] ""  Receiver
+     UI_enableTeslaAutopark 51|1@1+ (1,0) [0|1] ""  Receiver
      UI_autoTurnSignalMode 52|1@1+ (1,0) [0|1] ""  Receiver
      UI_enableCautionLightControl
      UI_applyEceR79SmartSummonOnly
@@ -71,8 +73,9 @@ BO_ 1021 ID3FDUI_autopilotControl: 8 ChassisBus
 
 m2：
      UI_enableApproachingEmergencyVehicleDetection 3｜1
-     UI_enableStartFsdFromParkBrakeConfirmation 4｜
-     UI_enableStartFsdFromPark 5｜
+     UI_enableStartFsdFromParkBrakeConfirmation 4｜1
+     UI_enableStartFsdFromPark 5｜1
+     UI_fsdMaxSpeedOffsetPercentage_[Reserve for HW3] 6|2@1+ (1,0) ""  Receiver
      UI_fsdMaxSpeedOffsetPercentage 8|6@1+ (1,0) [] ""  Receiver
      UI_coldStartMonarchInFactory
      UI_autopilotControlMux2Valid

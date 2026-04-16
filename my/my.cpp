@@ -133,6 +133,7 @@ struct FSDHandler {
 
         // FSD 停车/停点控制相关开关
         SetBit(frame, 38, true);
+
         //
         // // HOV 相关开关，通常可理解为多人乘员车道/拼车道策略
         // SetBit(frame, 3, true);
@@ -166,7 +167,6 @@ struct FSDHandler {
         if (m_use_hw4_code)
             SetBit(frame, 47, true); // Extra bit set only on HW4
 
-        //
         // UI_enableMapStops 20
         SetBit(frame, 20, true);
 
@@ -192,7 +192,6 @@ struct FSDHandler {
         //
         // 显示车到图
         SetBit(frame, 45, true);
-
 
         // 发送
         mcp->sendMessage(&frame);
@@ -236,6 +235,18 @@ struct FSDHandler {
         if (m_use_hw4_code) {
             frame.data[7] &= ~(0x07 << 4);
             frame.data[7] |= (m_speed_profile_for_hw4 & 0x07) << 4;
+        }
+
+        // start fsd from park brake confirmation
+        if (m_use_hw4_code) {
+            // UI_enableApproachingEmergencyVehicleDetection
+            SetBit(frame, 3, true);
+
+            // UI_enableStartFsdFromParkBrakeConfirmation
+            SetBit(frame, 4, false);
+
+            // UI_enableStartFsdFromPark
+            SetBit(frame, 5, true);
         }
 
         // m_frame_to_debug[index] = frame;
