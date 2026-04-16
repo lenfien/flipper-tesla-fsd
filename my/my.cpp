@@ -170,7 +170,7 @@ struct FSDHandler {
         }
         else if (m_biandao_tixing_zhendong) {
             m_use_hw4_code = true;
-            m_use_hw3_profile_when_hw4 = true;
+            m_use_hw3_profile_when_hw4 = false;
         }
         else
             m_use_hw4_code = false;
@@ -252,7 +252,7 @@ struct FSDHandler {
         // only act when handsOnLevel == 0 (no hands detected)
         uint8_t hands_on = frame.data[4] >> 6 & 0x03;
         if(hands_on != 0) return;
-        if (m_das_hands_on_state == 0 || m_das_hands_on_state == 8) return;
+        // if (m_das_hands_on_state == 0 || m_das_hands_on_state == 8) return;
 
         // --- Organic torque variation ---
         // torsionBarTorque encoding: tRaw = (Nm + 20.5) / 0.01
@@ -313,23 +313,20 @@ struct FSDHandler {
 
     __attribute__((optimize("O3"))) void
     HandleMessage(can_frame &frame) {
-        if (frame.can_dlc < 8)
-            return;
+        if (frame.can_dlc < 8) return;
 
         switch (frame.can_id) {
             case 0x399:
                 Handle_0x399(frame);
                 break;
-            case 787:
-                // Handle_787(frame);
+            case 787:  // track
+                //Handle_787(frame);
                 break;
             case 0x3F8:
                 Handle_0x3F8(frame);
                 break;
             case 0x3FD: {
-                if (!m_is_fsd_enabled)
-                    break;
-
+                if (!m_is_fsd_enabled) break;
                 auto index = ReadMuxID(frame);
 
                 if (m_enable_debug)
@@ -351,27 +348,30 @@ struct FSDHandler {
                 break;
             }
             case 880:
-                Handle_880(frame);
+                // Handle_880(frame);
                 break;
-            case 0x39B: {
-                m_das_hands_on_state = (frame.data[5] >> 2) & 0x0F;
-                break;
-            }
+            // case 923: {
+            //     m_das_hands_on_state = (frame.data[5] >> 2) & 0x0F;
+            //     m_923_counter += 1;
+            //     break;
+            // }
         }
 
         if (m_enable_debug && m_last_print_counter++ % 1000 == 0) {
             Serial.printf(
-                "FSD: %d(HW%d),Follow:%d,Profile(3:%d|4:%d),SpeedLimit:%d,TOffsetPercent:%d,Offset:%d,UseAutoOffset:%d,Camera:%d\n",
+                "FSD: %d(HW%d(%d)),Profile(3:%d|4:%d),SpeedLimit:%d,TOffsetPercent:%d,Offset:%d,UseAutoOffset:%d,Camera:%d,Das:%d(%d)\n",
                 m_is_fsd_enabled,
                 m_use_hw4_code ? 4 : 3,
-                m_follow_distance,
+                m_use_hw3_profile_when_hw4,
                 m_speed_profile_for_hw3,
                 m_speed_profile_for_hw4,
                 m_speed_limit,
                 m_speed_offset,
                 m_target_offset_percent,
                 m_use_speed_offset_auto,
-                m_enable_camera);
+                m_enable_camera,
+                m_das_hands_on_state,
+                m_923_counter);
 
             // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3DF[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[2]).c_str());
             // Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x3F8[0]).c_str());
@@ -539,6 +539,7 @@ private:
     uint32_t m_last_print_counter = 0;
 
     int32_t m_das_hands_on_state = 0;
+    uint32_t m_923_counter = 0;
 };
 
 std::unique_ptr<FSDHandler> handler;
