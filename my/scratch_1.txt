@@ -1,3 +1,5 @@
+https://tesla-can-explorer.gapinski.eu/?source=mcu3
+
 BO_ 1021 ID3FDUI_autopilotControl: 8 ChassisBus
  SG_ UI_autopilotControlIndex M : 0|3@1+ (1,0) [0|7] ""  Receiver
  SG_ UI_hovEnabled m0 : 3|1@1+ (1,0) [0|1] ""  Receiver
@@ -64,11 +66,11 @@ BO_ 1021 ID3FDUI_autopilotControl: 8 ChassisBus
      UI_autopilotTelemetryInChina 50|1@1+ (1,0) [0|1] ""  Receiver
      UI_enableTeslaAutopark 51|1@1+ (1,0) [0|1] ""  Receiver
      UI_autoTurnSignalMode 52|1@1+ (1,0) [0|1] ""  Receiver
-     UI_enableCautionLightControl
-     UI_applyEceR79SmartSummonOnly
-     UI_autopilotMonarchEnabled
-     UI_autopilotEphemerisEnabled
-     UI_enableCabinAudioRecording
+     UI_enableCautionLightControl 53|1@1+ (1,0) [0|1] ""  Receiver
+     UI_applyEceR79SmartSummonOnly 54|1@1+ (1,0) [0|1] ""  Receiver
+     UI_autopilotMonarchEnabled 55|1@1+ (1,0) [0|1] ""  Receiver
+     UI_autopilotEphemerisEnabled 56|1@1+ (1,0) [0|1] ""  Receiver
+     UI_enableCabinAudioRecording 57|1@1+ (1,0) [0|1] ""  Receiver
      UI_autopilotControlMux1Valid
 
 m2：

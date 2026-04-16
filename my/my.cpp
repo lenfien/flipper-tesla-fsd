@@ -116,9 +116,6 @@ struct FSDHandler {
 
         // 打开FSD
         SetBit(frame, 46, true); // UI_enableFullSelfDriving
-        SetBit(frame, 47, true); // UI_hasFullSelfDriving
-
-        // 打开HW4-specific FSD bit
         if (m_use_hw4_code)
             SetBit(frame, 60, true); // Additional HW4-specific FSD bit
 
@@ -132,20 +129,27 @@ struct FSDHandler {
             frame.data[6] |= (m_speed_profile_for_hw3 << 1);
         }
 
-        // FSD 停车/停点控制相关开关
+        // ----------------------------------- Test ------------------------------------ //
+        //  SG_ UI_hovEnabled m0 : 3|1@1+ (1,0) [0|1] ""  Receiver
+        SetBit(frame, 3, true);
+
+        // SG_ UI_fsdVisualizationEnabled m0 : 37|1@1+ (1,0) [0|1] ""  Receiver
+        SetBit(frame, 37, true);
+
+        // UI_fsdStopsControlEnabled m0 : 38|1@1+ (1,0) [0|1] ""  Receiver
         SetBit(frame, 38, true);
 
-        //
-        // // HOV 相关开关，通常可理解为多人乘员车道/拼车道策略
-        // SetBit(frame, 3, true);
-        //
-        // // FSD 可视化显示开关
-        // SetBit(frame, 37, true);
+        // UI_fsdContinueOnGreenWithCIPV ：m0 : 39|1@1+ (1,0) [0|1] ""  Receiver
+        SetBit(frame, 39, true);
 
-        // ----------------------------- TEST ------------------------------------
         // 自动设置速度和偏移
-        SetBit(frame, 40, true);    // UI_smartSetSpeed TEST
-        SetBit(frame, 41, true);    // UI_automaticSetSpeedOffset TEST
+        SetBit(frame, 40, true);
+
+        // UI_automaticSetSpeedOffset TEST
+        SetBit(frame, 41, true);
+
+        // UI_hasFullSelfDriving
+        SetBit(frame, 47, true);
 
         // 发送
         mcp->sendMessage(&frame);
@@ -173,31 +177,42 @@ struct FSDHandler {
         if (m_use_hw4_code)
             SetBit(frame, 47, true); // Extra bit set only on HW4
 
-        // UI_enableMapStops 20
-        SetBit(frame, 20, true);
-
-        // enable EAP/summon
-        SetBit(frame, 46, true);
-
         // 禁用驾驶室内摄像头
         SetBit(frame, 43, m_enable_camera);
 
-        //
-        // // 39
-        // // UI_factorySummonEnable
+        // --------------------------------- Test -----------------------------------------------//
+        // UI_enableMapStops 20
+        SetBit(frame, 20, false);
+
+        // UI_factorySummonEnable
         SetBit(frame, 39, true);
 
-        // 手握方向盘提醒
-        // SetBit(frame, 17, true); //  ← 告知车机驾驶员在看路
+        // UI_enableAutopilotStopWarning
+        SetBit(frame, 44, true);
 
-        //
-        // // 打开停止警告
-        // // UI_enableAutopilotStopWarning
-        // SetBit(frame, 44, true);
-
-        //
-        // 显示车到图
+        // UI_showLaneGraph
         SetBit(frame, 45, true);
+
+        // UI_showTrackLabels
+        SetBit(frame, 46, true);
+
+        // UI_enableVisionSpeedControl 49|1@1+ (1,0) [0|1] ""  Receiver
+        SetBit(frame, 49, true);
+
+        // UI_enableCautionLightControl 53|1@1+ (1,0) [0|1] ""  Receiver
+        SetBit(frame, 53, true);
+
+        // UI_applyEceR79SmartSummonOnly 54|1@1+ (1,0) [0|1] ""  Receiver
+        SetBit(frame, 54, false);
+
+        // UI_autopilotMonarchEnabled 55|1@1+ (1,0) [0|1] ""  Receiver
+        SetBit(frame, 55, true);
+
+        // UI_autopilotEphemerisEnabled 56|1@1+ (1,0) [0|1] ""  Receiver
+        SetBit(frame, 56, true);
+
+        // UI_enableCabinAudioRecording 57|1@1+ (1,0) [0|1] ""  Receiver
+        SetBit(frame, 57, true);
 
         // 发送
         mcp->sendMessage(&frame);
@@ -205,7 +220,6 @@ struct FSDHandler {
 
     __attribute__((optimize("O3"))) void
     Handle_0x3FD_Mux2(can_frame & frame) {
-
         // 偏移模式是固定速度
         // 偏移模式是百分比
         if (!m_use_speed_offset_auto)
@@ -243,17 +257,16 @@ struct FSDHandler {
             frame.data[7] |= (m_speed_profile_for_hw4 & 0x07) << 4;
         }
 
+        // ---------------------------------- Test -------------------------------------------//
         // start fsd from park brake confirmation
-        if (m_use_hw4_code) {
-            // UI_enableApproachingEmergencyVehicleDetection
-            SetBit(frame, 3, true);
+        // UI_enableApproachingEmergencyVehicleDetection
+        SetBit(frame, 3, true);
 
-            // UI_enableStartFsdFromParkBrakeConfirmation
-            SetBit(frame, 4, false);
+        // UI_enableStartFsdFromParkBrakeConfirmation
+        SetBit(frame, 4, false);
 
-            // UI_enableStartFsdFromPark
-            SetBit(frame, 5, true);
-        }
+        // UI_enableStartFsdFromPark
+        SetBit(frame, 5, true);
 
         // m_frame_to_debug[index] = frame;
         mcp->sendMessage(&frame);
