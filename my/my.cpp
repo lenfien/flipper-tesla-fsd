@@ -141,6 +141,11 @@ struct FSDHandler {
         // // FSD 可视化显示开关
         // SetBit(frame, 37, true);
 
+        // ----------------------------- TEST ------------------------------------
+        // 自动设置速度和偏移
+        SetBit(frame, 40, true);    // UI_smartSetSpeed TEST
+        SetBit(frame, 41, true);    // UI_automaticSetSpeedOffset TEST
+
         // 发送
         mcp->sendMessage(&frame);
     }
