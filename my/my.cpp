@@ -62,7 +62,8 @@ struct FSDHandler {
         m_speed_rule_selected = ((frame.data[6] & 0b00001100) >> 2);
 
         // m_is_fsd_enabled = (frame.data[1] & 0b00100000) != 0;
-        m_is_fsd_enabled = m_speed_rule_selected > 0 && (m_cur_gear == EGear_D || m_cur_gear == EGear_R);
+        // m_is_fsd_enabled = m_speed_rule_selected > 0 && (m_cur_gear == EGear_D || m_cur_gear == EGear_R);
+        m_is_fsd_enabled = m_speed_rule_selected > 0; // && (m_cur_gear == EGear_D || m_cur_gear == EGear_R);
 
         m_need_ensure_when_change_line = ((frame.data[0] & 0b00000010) != 0);
         m_shichuchaochedao_bit = ((frame.data[6] & 0b01000000) == 0);
