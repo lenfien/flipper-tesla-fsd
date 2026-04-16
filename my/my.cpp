@@ -63,9 +63,6 @@ struct FSDHandler {
         // 是否打开内相机，使用变道确认
         m_enable_camera = m_shichuchaochedao_bit;
 
-        // hw4 使用使出超车道控制
-        // m_use_hw4_code = m_need_ensure_when_change_line;
-
         // 如果不是使用HW4的代码，那么就使用HW3的代码
         // speed profile
         {
@@ -104,30 +101,10 @@ struct FSDHandler {
     Handle_0x3FD_Mux0(can_frame & frame) {
         // 计算限速
         // 速度偏移的原始值
-        m_speed_offset_raw = frame.data[3];
-
         // 选择固定速度的，就代表用auto mode
+        m_speed_offset_raw = frame.data[3];
         m_use_speed_offset_auto = (0b10000000 & m_speed_offset_raw) == 0;
         m_speed_offset_raw &= 0b01111111;
-
-        // 偏移模式是固定速度
-        // 偏移模式是百分比
-        if (!m_use_speed_offset_auto)
-            m_target_offset_percent = Rerange(Clamp(m_speed_offset_raw, 60, 120), 60, 120, 0, 30);
-        else {
-            if (m_speed_limit <= 40)
-                m_target_offset_percent = 50;
-            else if (m_speed_limit <= 60)
-                m_target_offset_percent = 30;
-            else if (m_speed_limit <= 80)
-                m_target_offset_percent = 20;
-            else if (m_speed_limit <= 100)
-                m_target_offset_percent = 10;
-            else
-                m_target_offset_percent = 5;
-        }
-
-        m_speed_offset = m_use_hw4_code ? m_target_offset_percent : Rerange(m_target_offset_percent, 0, 60, 0, 240);
 
         // 打开FSD
         SetBit(frame, 46, true); // FSD enable / activation bit
@@ -147,7 +124,7 @@ struct FSDHandler {
         }
 
         // FSD 停车/停点控制相关开关
-        // SetBit(frame, 38, true);
+        SetBit(frame, 38, true);
         //
         // // HOV 相关开关，通常可理解为多人乘员车道/拼车道策略
         // SetBit(frame, 3, true);
@@ -178,7 +155,6 @@ struct FSDHandler {
         // 禁用Nag
         SetBit(frame, 19, false);
 
-
         if (m_use_hw4_code)
             SetBit(frame, 47, true); // Extra bit set only on HW4
 
@@ -202,11 +178,11 @@ struct FSDHandler {
 
         //
         // 显示车到图
-        // SetBit(frame, 45, true);
+        SetBit(frame, 45, true);
 
         //
         // UI_enableMapStops 20
-        // SetBit(frame, 20, true);
+        SetBit(frame, 20, true);
 
         // 发送
         mcp->sendMessage(&frame);
@@ -214,6 +190,25 @@ struct FSDHandler {
 
     __attribute__((optimize("O3"))) void
     Handle_0x3FD_Mux2(can_frame & frame) {
+
+        // 偏移模式是固定速度
+        // 偏移模式是百分比
+        if (!m_use_speed_offset_auto)
+            m_target_offset_percent = Rerange(Clamp(m_speed_offset_raw, 60, 120), 60, 120, 0, 30);
+        else {
+            if (m_speed_limit <= 40)
+                m_target_offset_percent = 50;
+            else if (m_speed_limit <= 60)
+                m_target_offset_percent = 30;
+            else if (m_speed_limit <= 80)
+                m_target_offset_percent = 20;
+            else if (m_speed_limit <= 100)
+                m_target_offset_percent = 10;
+            else
+                m_target_offset_percent = 5;
+        }
+
+        m_speed_offset = m_use_hw4_code ? m_target_offset_percent : Rerange(m_target_offset_percent, 0, 60, 0, 240);
 
         // HW3 offset
         if (!m_use_hw4_code) {
@@ -223,7 +218,7 @@ struct FSDHandler {
             frame.data[1] |= (m_speed_offset >> 2);
         }
 
-        // HW4 Offset
+        // HW4 profile
         if (m_use_hw4_code) {
             frame.data[7] &= ~(0x07 << 4);
             frame.data[7] |= (m_speed_profile_for_hw4 & 0x07) << 4;
