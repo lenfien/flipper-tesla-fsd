@@ -14,6 +14,13 @@ bool enablePrint = true;
 #define CAN_STBY PIN_CAN_STANDBY       // GPIO16
 #define CAN_RESET PIN_CAN_RESET        // GPIO18
 
+enum EGear {
+    EGear_D = 0b100,
+    EGear_P = 0b001,
+    EGear_R = 0b010,
+    EGear_N = 0b011,
+};
+
 std::unique_ptr<MCP2515> mcp;
 
 static uint32_t nag_prng_state = 0xDEADBEEF;
@@ -55,7 +62,7 @@ struct FSDHandler {
         m_speed_rule_selected = ((frame.data[6] & 0b00001100) >> 2);
 
         // m_is_fsd_enabled = (frame.data[1] & 0b00100000) != 0;
-        m_is_fsd_enabled = m_speed_rule_selected > 0;
+        m_is_fsd_enabled = m_speed_rule_selected > 0 && (m_cur_gear == EGear_D || m_cur_gear == EGear_R);
 
         m_need_ensure_when_change_line = ((frame.data[0] & 0b00000010) != 0);
         m_shichuchaochedao_bit = ((frame.data[6] & 0b01000000) == 0);
@@ -350,11 +357,16 @@ struct FSDHandler {
             //     m_923_counter += 1;
             //     break;
             // }
+            case 280:
+                if (m_enable_debug)
+                    m_frame_to_debug_for_280 = frame;
+                m_cur_gear = (EGear)(frame.data[2] >> 5);
+                break;
         }
 
         if (m_enable_debug && m_last_print_counter++ % 1000 == 0) {
             Serial.printf(
-                "FSD: %d(HW%d(%d)),Profile(3:%d|4:%d),SpeedLimit:%d,TOffsetPercent:%d,Offset:%d,UseAutoOffset:%d,Camera:%d,Das:%d(%d)\n",
+                "FSD: %d(HW%d(%d)),Profile(3:%d|4:%d),SpeedLimit:%d,TOffsetPercent:%d,Offset:%d,UseAutoOffset:%d,Camera:%d,Gear:%s\n",
                 m_is_fsd_enabled,
                 m_use_hw4_code ? 4 : 3,
                 m_use_hw3_profile_when_hw4,
@@ -365,17 +377,18 @@ struct FSDHandler {
                 m_target_offset_percent,
                 m_use_speed_offset_auto,
                 m_enable_camera,
-                m_das_hands_on_state,
-                m_923_counter);
+                ToString(m_cur_gear));
 
             // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3DF[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[2]).c_str());
             // Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x3F8[0]).c_str());
             // Serial.printf("0x3F8: from %s, to %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x370[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x370[1]).c_str());
+            // Serial.printf("280:  %s \n", ToBinaryString(m_frame_to_debug_for_280).c_str());
         }
     }
 
     // 工具函数
 private:
+
     __attribute__((optimize("O3"))) std::string
     ToBinaryString(uint8_t i) {
         std::string b;
@@ -472,6 +485,22 @@ private:
         return static_cast<uint8_t>(sum & 0xFF);
     }
 
+    const char*
+    ToString(EGear gear) {
+        switch (gear) {
+            case EGear_P:
+                return "P";
+            case EGear_D:
+                return "D";
+            case EGear_R:
+                return "R";
+            case EGear_N:
+                return "N";
+            default:
+                return "Unknown";
+        }
+    }
+
 private:
     int m_speed_offset = 0;
 
@@ -497,6 +526,7 @@ private:
     std::vector<can_frame> m_frame_to_debug_vec_for_0x3DF;
     std::vector<can_frame> m_frame_to_debug_vec_for_0x3F8;
     std::vector<can_frame> m_frame_to_debug_vec_for_0x370;
+    can_frame m_frame_to_debug_for_280;
 
     uint8_t m_to_use_data[5][8] = {
         // 0:11 f5  7 bd 20 1b 2e a6
@@ -527,8 +557,11 @@ private:
     bool m_biandao_tixing_zhendong = false;
     bool m_biandao_tixing_fengming = false;
 
+    // 当前档位
+    EGear m_cur_gear = EGear_P;
+
     // 是否debug
-    bool m_enable_debug = false;
+    bool m_enable_debug = true;
 
     // 上一次打印的计数器
     uint32_t m_last_print_counter = 0;
