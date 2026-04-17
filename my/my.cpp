@@ -35,7 +35,7 @@ static uint32_t nag_xorshift32(void) {
 
 struct FSDHandler {
     FSDHandler() {
-        m_frame_to_debug_vec_for_0x3DF.resize(10);
+        m_frame_to_debug_vec_for_0x3FD.resize(10);
         m_frame_to_debug_vec_for_0x3F8.resize(5);
         m_frame_to_debug_vec_for_0x370.resize(5);
     }
@@ -259,14 +259,11 @@ struct FSDHandler {
 
         // ---------------------------------- Test -------------------------------------------//
         // start fsd from park brake confirmation
-        // UI_enableApproachingEmergencyVehicleDetection
-        SetBit(frame, 3, true);
 
         // UI_enableStartFsdFromParkBrakeConfirmation
-        SetBit(frame, 4, false);
-
-        // UI_enableStartFsdFromPark
         SetBit(frame, 5, true);
+        SetBit(frame, 6, false);
+        SetBit(frame, 7, true);
 
         // m_frame_to_debug[index] = frame;
         mcp->sendMessage(&frame);
@@ -364,9 +361,6 @@ struct FSDHandler {
                 if (!m_is_fsd_enabled) break;
                 auto index = ReadMuxID(frame);
 
-                if (m_enable_debug)
-                    m_frame_to_debug_vec_for_0x3DF[index] = frame;
-
                 switch (index) {
                     case 0:
                         Handle_0x3FD_Mux0(frame);
@@ -380,6 +374,10 @@ struct FSDHandler {
                     default:
                         break;
                 }
+
+                if (m_enable_debug)
+                    m_frame_to_debug_vec_for_0x3FD[index] = frame;
+
                 break;
             }
             case 880:
@@ -412,10 +410,11 @@ struct FSDHandler {
                 m_enable_camera,
                 ToString(m_cur_gear));
 
-            // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3DF[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3DF[2]).c_str());
+            // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3FD[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3FD[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3FD[2]).c_str());
             // Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x3F8[0]).c_str());
             // Serial.printf("0x3F8: from %s, to %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x370[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x370[1]).c_str());
             // Serial.printf("280:  %s \n", ToBinaryString(m_frame_to_debug_for_280).c_str());
+            // Serial.printf("0x3DF:  %s \n", ToBinaryString(m_frame_to_debug_for_3DF).c_str());
         }
     }
 
@@ -556,10 +555,11 @@ private:
     bool m_use_hw4_code = true;
     bool m_use_hw3_profile_when_hw4 = false;
 
-    std::vector<can_frame> m_frame_to_debug_vec_for_0x3DF;
+    std::vector<can_frame> m_frame_to_debug_vec_for_0x3FD;
     std::vector<can_frame> m_frame_to_debug_vec_for_0x3F8;
     std::vector<can_frame> m_frame_to_debug_vec_for_0x370;
     can_frame m_frame_to_debug_for_280;
+    can_frame m_frame_to_debug_for_3DF;
 
     uint8_t m_to_use_data[5][8] = {
         // 0:11 f5  7 bd 20 1b 2e a6
