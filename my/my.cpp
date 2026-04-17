@@ -468,25 +468,27 @@ struct FSDHandler {
         }
 
         if (m_enable_debug && m_last_print_counter++ % 1000 == 0) {
-            Serial.printf(
-                "FSD: %d(HW%d(%d)),Profile(3:%d|4:%d),SpeedLimit:%d,TOffsetPercent:%d,Offset:%d,UseAutoOffset:%d,Camera:%d,Gear:%s\n",
-                m_is_fsd_enabled,
-                m_use_hw4_code ? 4 : 3,
-                m_use_hw3_profile_when_hw4,
-                m_speed_profile_for_hw3,
-                m_speed_profile_for_hw4,
-                m_speed_limit,
-                m_speed_offset,
-                m_target_offset_percent,
-                m_use_speed_offset_auto,
-                m_enable_camera,
-                ToString(m_cur_gear));
-
+            // Serial.printf(
+            //     "FSD: %d(HW%d(%d)),Profile(3:%d|4:%d),SpeedLimit:%d,TOffsetPercent:%d,Offset:%d,UseAutoOffset:%d,Camera:%d,Gear:%s\n",
+            //     m_is_fsd_enabled,
+            //     m_use_hw4_code ? 4 : 3,
+            //     m_use_hw3_profile_when_hw4,
+            //     m_speed_profile_for_hw3,
+            //     m_speed_profile_for_hw4,
+            //     m_speed_limit,
+            //     m_speed_offset,
+            //     m_target_offset_percent,
+            //     m_use_speed_offset_auto,
+            //     m_enable_camera,
+            //     ToString(m_cur_gear));
             // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3FD[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3FD[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3FD[2]).c_str());
             // Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x3F8[0]).c_str());
             // Serial.printf("0x3F8: from %s, to %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x370[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x370[1]).c_str());
             // Serial.printf("280:  %s \n", ToBinaryString(m_frame_to_debug_for_280).c_str());
             // Serial.printf("0x3DF:  %s \n", ToBinaryString(m_frame_to_debug_for_3DF).c_str());
+
+            for (int mux = 0; mux < 8; mux++)
+                Serial.printf("mux%d: %s\n", ToHexString(gtw_snapshot[mux]));
         }
     }
 
@@ -678,7 +680,7 @@ private:
     // When shield is armed: any incoming 0x7FF that differs from snapshot
     // is immediately retransmitted with the snapshot data, blocking
     // server-side ban pushes at the CAN layer.
-    uint8_t gtw_snapshot[8][8];  // [mux][byte0..7], 64 bytes total
+    can_frame gtw_snapshot[8];  // [mux][byte0..7], 64 bytes total
     bool gtw_snapshot_valid[8];  // per-mux: has this mux been captured?
     bool gtw_shield_armed = true;       // true = actively blocking changes
     uint32_t gtw_shield_blocks;  // counter: how many frames we've blocked
