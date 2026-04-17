@@ -667,7 +667,7 @@ private:
     EGear m_cur_gear = EGear_P;
 
     // 是否debug
-    bool m_enable_debug = false;
+    bool m_enable_debug = true;
 
     // 上一次打印的计数器
     uint32_t m_last_print_counter = 0;
