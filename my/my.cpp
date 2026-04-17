@@ -8,6 +8,42 @@
 
 bool enablePrint = true;
 
+#define CAN_ID_STW_ACTN_RQ    0x045  // 69 - steering wheel stalk (Legacy follow distance)
+#define CAN_ID_AP_LEGACY      0x3EE  // 1006 - autopilot control (Legacy)
+#define CAN_ID_ISA_SPEED      0x399  // 921 - ISA speed chime (HW4)
+#define CAN_ID_GTW_CAR_CONFIG 0x398  // 920 - HW version detection
+#define CAN_ID_FOLLOW_DIST    0x3F8  // 1016 - follow distance / speed profile
+#define CAN_ID_AP_CONTROL     0x3FD  // 1021 - autopilot control (HW3/HW4)
+#define CAN_ID_EPAS_STATUS    0x370  // 880 - EPAS3P_sysStatus (nag killer target)
+#define CAN_ID_GTW_CAR_STATE  0x318  // 792 - GTW_carState (carries GTW_updateInProgress)
+#define CAN_ID_BMS_HV_BUS     0x132  // 306 - BMS_hvBusStatus (pack voltage / current)
+#define CAN_ID_BMS_SOC        0x292  // 658 - BMS_socStatus (state of charge)
+#define CAN_ID_BMS_THERMAL    0x312  // 786 - BMS_thermalStatus (battery temp)
+#define CAN_ID_TRIP_PLANNING  0x082  // 130 - UI_tripPlanning (precondition trigger)
+
+// --- Extras CAN IDs (Model 3/Y) ---
+#define CAN_ID_VCFRONT_LIGHT  0x3F5  // 1013 - ID3F5VCFRONT_lighting (hazard, fog, DRL, wiper)
+#define CAN_ID_SCCM_RSTALK   0x229  // 553  - SCCM_rightStalk (gear shift, park button)
+#define CAN_ID_DI_SYS_STATUS  0x118  // 280  - DI_systemStatus (track mode, traction ctrl)
+#define CAN_ID_VCRIGHT_STATUS 0x343  // 835  - VCRIGHT_status (rear defrost state)
+#define CAN_ID_DI_SPEED       0x257  // 599  - DI_speed (vehicle speed, checksummed)
+#define CAN_ID_ESP_STATUS     0x145  // 325  - ESP_status (brake, stability)
+#define CAN_ID_GTW_EPAS_CTRL  0x101  // 257  - GTW_epasControl (steering tune WRITE, Chassis CAN)
+#define CAN_ID_DAS_STATUS     0x39B  // 923  - DAS_status (AP state, nag, lane change, blind spot)
+#define CAN_ID_DAS_STATUS2    0x389  // 905  - DAS_status2 (ACC report, driver interaction)
+#define CAN_ID_DAS_SETTINGS   0x293  // 659  - DAS_settings (autosteer enable, steering weight, etc.)
+#define CAN_ID_GTW_CONFIG_ETH 0x7FF  // 2047 - GTW_carConfig on Ethernet/mixed bus (autopilot tier readback)
+#define CAN_ID_TRACK_MODE_SET 0x313  // 787  - UI_trackModeSettings (track mode request, checksummed)
+#define CAN_ID_SCCM_LSTALK   0x249  // 585  - SCCM_leftStalk (high beam, turn signal, wiper wash — Party CAN, 3 bytes)
+#define CAN_ID_DI_TORQUE     0x108  // 264  - DI_torque (motor torque/power — Party CAN)
+#define CAN_ID_DAS_CONTROL   0x2B9  // 697  - DAS_control (ACC state, set speed — Party CAN)
+#define CAN_ID_DI_STATE      0x286  // 646  - DI_state (cruise state, gear, park brake — Party CAN)
+#define CAN_ID_UI_WARNING    0x311  // 785  - UI_warning (blinker, door, buckle, wiper — Party CAN)
+#define CAN_ID_ESP_WHEELSPD  0x175  // 373  - ESP_wheelSpeeds (4 wheel speeds — Party CAN)
+#define CAN_ID_STEER_ANGLE   0x129  // 297  - SCCM_steeringAngleSensor (steering angle — Party CAN)
+#define CAN_ID_DAS_STEER     0x488  // 1160 - DAS_steeringControl (DAS steering request — Party CAN)
+#define CAN_ID_APS_EACMON    0x27D  // 637  - APS_eacMonitor (steering permission — Party CAN)
+
 #define LED_PIN PIN_LED                // onboard red LED (GPIO13)
 #define CAN_CS PIN_CAN_CS              // GPIO19 on this Feather
 #define CAN_INT_PIN PIN_CAN_INTERRUPT  // GPIO22 (unused here for now)
@@ -344,6 +380,38 @@ struct FSDHandler {
     }
 
     __attribute__((optimize("O3"))) void
+    Handle_0x7FF(can_frame & frame) {
+        if(frame.can_dlc < 8) return;
+        uint8_t mux = frame.data[0] & 0x07;
+
+        // Learning phase: capture snapshot
+        if(!gtw_snapshot_valid[mux]) {
+            for(int i = 0; i < 8; i++)
+                gtw_snapshot[mux][i] = frame.data[i];
+            gtw_snapshot_valid[mux] = true;
+        }
+
+        // Armed: compare against snapshot
+        if(!gtw_snapshot_valid[mux]) return;
+
+        bool changed = false;
+        for(int i = 0; i < 8; i++) {
+            if(frame.data[i] != gtw_snapshot[mux][i]) {
+                changed = true;
+                break;
+            }
+        }
+
+        if(changed) {
+            // Overwrite with healthy snapshot
+            for(int i = 0; i < 8; i++)
+                frame.data[i] = gtw_snapshot[mux][i];
+            gtw_shield_blocks++;
+            mcp->sendMessage(&frame);
+        }
+    }
+
+    __attribute__((optimize("O3"))) void
     HandleMessage(can_frame &frame) {
         if (frame.can_dlc < 8) return;
 
@@ -388,10 +456,14 @@ struct FSDHandler {
             //     m_923_counter += 1;
             //     break;
             // }
-            case 280:
+            case 0x118: {
                 if (m_enable_debug)
-                    m_frame_to_debug_for_280 = frame;
+                    m_frame_to_debug_for_0x118 = frame;
                 m_cur_gear = (EGear)(frame.data[2] >> 5);
+                break;
+            }
+            case 0x7FF:
+                Handle_0x7FF(frame);
                 break;
         }
 
@@ -420,7 +492,6 @@ struct FSDHandler {
 
     // 工具函数
 private:
-
     __attribute__((optimize("O3"))) std::string
     ToBinaryString(uint8_t i) {
         std::string b;
@@ -558,7 +629,7 @@ private:
     std::vector<can_frame> m_frame_to_debug_vec_for_0x3FD;
     std::vector<can_frame> m_frame_to_debug_vec_for_0x3F8;
     std::vector<can_frame> m_frame_to_debug_vec_for_0x370;
-    can_frame m_frame_to_debug_for_280;
+    can_frame m_frame_to_debug_for_0x118;
     can_frame m_frame_to_debug_for_3DF;
 
     uint8_t m_to_use_data[5][8] = {
@@ -601,6 +672,16 @@ private:
 
     int32_t m_das_hands_on_state = 0;
     uint32_t m_923_counter = 0;
+
+    // --- 0x7FF shield (ban defense) ---
+    // Snapshots of all 8 GTW_carConfig mux frames in "healthy" state.
+    // When shield is armed: any incoming 0x7FF that differs from snapshot
+    // is immediately retransmitted with the snapshot data, blocking
+    // server-side ban pushes at the CAN layer.
+    uint8_t gtw_snapshot[8][8];  // [mux][byte0..7], 64 bytes total
+    bool gtw_snapshot_valid[8];  // per-mux: has this mux been captured?
+    bool gtw_shield_armed = true;       // true = actively blocking changes
+    uint32_t gtw_shield_blocks;  // counter: how many frames we've blocked
 };
 
 std::unique_ptr<FSDHandler> handler;
