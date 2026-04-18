@@ -285,7 +285,7 @@ struct FSDHandler {
 
         // HW4 offset
         if (m_use_hw4_code)
-            frame.data[1] = (frame.data[1] & 0xC0) | (m_speed_offset & 0x3F);
+            frame.data[1] = (frame.data[1] & 0xC0) | (m_speed_offset + (rand() %1) & 0x3F);
 
         // HW4 profile
         if (m_use_hw4_code) {
@@ -382,33 +382,22 @@ struct FSDHandler {
     __attribute__((optimize("O3"))) void
     Handle_0x7FF(can_frame & frame) {
         if(frame.can_dlc < 8) return;
-        uint8_t mux = frame.data[0] & 0x07;
+        uint8_t mux = frame.data[0] & 0x0F;
+        auto& saved_frame  = m_gtw_protector[mux];
 
-        // Learning phase: capture snapshot
-        if(!gtw_snapshot_valid[mux]) {
-            for(int i = 0; i < 8; i++)
-                gtw_snapshot[mux][i] = frame.data[i];
-            gtw_snapshot_valid[mux] = true;
-        }
-
-        // Armed: compare against snapshot
-        if(!gtw_snapshot_valid[mux]) return;
-
-        bool changed = false;
-        for(int i = 0; i < 8; i++) {
-            if(frame.data[i] != gtw_snapshot[mux][i]) {
-                changed = true;
+        bool is_same = true;
+        for (int i = 0; i < 8; i++) {
+            if (saved_frame.data[i] != frame.data[i]) {
+                is_same = false;
                 break;
             }
         }
 
-        if(changed) {
-            // Overwrite with healthy snapshot
-            for(int i = 0; i < 8; i++)
-                frame.data[i] = gtw_snapshot[mux][i];
-            gtw_shield_blocks++;
-            mcp->sendMessage(&frame);
-        }
+        if (is_same)
+            return;
+
+        Serial.printf("0x7FF: %d : %s, F: %s, S: %s\n", mux, is_same ? "Same" : "Notsame", ToHexString(frame).c_str(), ToHexString(saved_frame).c_str());
+        mcp->sendMessage(&saved_frame);
     }
 
     __attribute__((optimize("O3"))) void
@@ -487,8 +476,8 @@ struct FSDHandler {
             // Serial.printf("280:  %s \n", ToBinaryString(m_frame_to_debug_for_280).c_str());
             // Serial.printf("0x3DF:  %s \n", ToBinaryString(m_frame_to_debug_for_3DF).c_str());
 
-            for (int mux = 0; mux < 8; mux++)
-                Serial.printf("mux%d: %s\n", ToHexString(gtw_snapshot[mux]));
+            // for (int mux = 0; mux < 8; mux++)
+            //     Serial.printf("mux%d: %s\n", mux, ToHexString(gtw_snapshot[mux]).c_str());
         }
     }
 
@@ -544,8 +533,18 @@ private:
     __attribute__((optimize("O3"))) std::string
     ToHexString(const can_frame &frame) {
         std::ostringstream result;
-        for (size_t i = 0; i < sizeof(frame.data); ++i)
-            result << "0x" << std::hex << (int) frame.data[i] << ",";
+        for (size_t i = 0; i < sizeof(frame.data); ++i) {
+            result << "0x"
+                    << std::hex
+                    << std::uppercase // 可选：大写 A-F
+                    << std::hex
+                    << std::setw(2) // 宽度 2
+                    << std::setfill('0')
+                    << (int) frame.data[i];
+
+            if (i < sizeof(frame.data) - 1)
+                result << ",";
+        }
         return result.str();
     }
 
@@ -680,10 +679,38 @@ private:
     // When shield is armed: any incoming 0x7FF that differs from snapshot
     // is immediately retransmitted with the snapshot data, blocking
     // server-side ban pushes at the CAN layer.
-    can_frame gtw_snapshot[8];  // [mux][byte0..7], 64 bytes total
-    bool gtw_snapshot_valid[8];  // per-mux: has this mux been captured?
-    bool gtw_shield_armed = true;       // true = actively blocking changes
-    uint32_t gtw_shield_blocks;  // counter: how many frames we've blocked
+    // can_frame gtw_snapshot[8];  // [mux][byte0..7], 64 bytes total
+    // bool gtw_snapshot_valid[8];  // per-mux: has this mux been captured?
+    // bool gtw_shield_armed = true;       // true = actively blocking changes
+    // uint32_t gtw_shield_blocks;  // counter: how many frames we've blocked
+
+    // FSD m2 42 3
+    can_frame m_gtw_protector[10] = {             //0          8          16         24         32         40         48         56
+        {.can_id = 0x7FF, .can_dlc = 8, {0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000}}, // 0
+        {.can_id = 0x7FF, .can_dlc = 8, {0b00000001,0b10100101,0b01001110,0b01000011,0b01000101,0b10100101,0b01010100,0b00000001}}, // 1
+        {.can_id = 0x7FF, .can_dlc = 8, {0b00000010,0b01000111,0b01010110,0b01101101,0b10001110,/*FSD 2|2*/0b01001101,0b11000110,0b00100111}}, // 2
+        {.can_id = 0x7FF, .can_dlc = 8, {0b00000011,0b00110011,0b00001100,0b01001101,0b11100001,0b00100000,0b00101000,0b00110100}}, // 3
+        {.can_id = 0x7FF, .can_dlc = 8, {0b00000100,0b01110111,0b11000001,0b10010011,0b01101000,0b10101010,0b10111100,0b00110000}}, // 4
+        {.can_id = 0x7FF, .can_dlc = 8, {0b00000101,0b00010010,0b00100000,0b01100001,0b01000000,0b00000100,0b10000000,0b01000010}}, // 5
+        {.can_id = 0x7FF, .can_dlc = 8, {0b00000110,0b01011000,0b10110101,0b01011011,0b00000111,0b10110000,0b11001100,0b11001000}}, // 6
+        {.can_id = 0x7FF, .can_dlc = 8, {0b00000111,0b00100110,0b00000000,0b10000101,0b00100000,0b00000100,0b00100011,0b01110000}}, // 7
+        {.can_id = 0x7FF, .can_dlc = 8, {0b00001000,0b00000000,0b01000010,0b00000010,0b10010000,0b01000010,0b00010100,0b00000000}}, // 8
+        {.can_id = 0x7FF, .can_dlc = 8,         {0b00001001,0b11101111,0b00000000,0b00100000,0b00000000,0b10000000,0b00000000,0b00000000}}  // 9
+        // {.can_id = 0x7FF, .can_dlc = 8, {0b00001001,0b11101111,0b11111111,0b11111111,0b11111111,0b11111111,0b11111111,0b11111111}} // 9
+    };
+
+    // can_frame m_gtw_protector[10] = {
+    //     {.can_id = 0x7FF, .can_dlc = 8, {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}},
+    //     {.can_id = 0x7FF, .can_dlc = 8, {0x01,0xA5,0x4E,0x43,0x45,0xA5,0x54,0x01}},
+    //     {.can_id = 0x7FF, .can_dlc = 8, {0x02,0x47,0x56,0x6D,0x8E,0x4D,0xC6,0x27}},
+    //     {.can_id = 0x7FF, .can_dlc = 8, {0x03,0x33,0x0C,0x4D,0xE1,0x20,0x28,0x34}},
+    //     {.can_id = 0x7FF, .can_dlc = 8, {0x04,0x77,0xC1,0x93,0x68,0xAA,0xBC,0x30}},
+    //     {.can_id = 0x7FF, .can_dlc = 8, {0x05,0x12,0x20,0x61,0x40,0x04,0x80,0x42}},
+    //     {.can_id = 0x7FF, .can_dlc = 8, {0x06,0x58,0xB5,0x5B,0x07,0xB0,0xCC,0xC8}},
+    //     {.can_id = 0x7FF, .can_dlc = 8, {0x07,0x26,0x00,0x85,0x20,0x04,0x23,0x70}},
+    //     {.can_id = 0x7FF, .can_dlc = 8, {0x08,0x00,0x42,0x02,0x90,0x42,0x14,0x00}},
+    //     {.can_id = 0x7FF, .can_dlc = 8, {0x09,0xEF,0x00,0x20,0x00,0x80,0x00,0x00}}
+    // };
 };
 
 std::unique_ptr<FSDHandler> handler;
