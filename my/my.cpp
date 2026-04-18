@@ -399,7 +399,7 @@ struct FSDHandler {
             return;
 
         Serial.printf("0x7FF: %d : %s, F: %s, S: %s\n", mux, is_same ? "Same" : "Notsame", ToHexString(frame).c_str(), ToHexString(saved_frame).c_str());
-        mcp->sendMessage(&saved_frame);
+       // mcp->sendMessage(&saved_frame);
     }
 
     __attribute__((optimize("O3"))) void
@@ -473,6 +473,7 @@ struct FSDHandler {
                 m_use_speed_offset_auto,
                 m_enable_camera,
                 ToString(m_cur_gear));
+
             // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3FD[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3FD[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3FD[2]).c_str());
             // Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x3F8[0]).c_str());
             // Serial.printf("0x3F8: from %s, to %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x370[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x370[1]).c_str());
