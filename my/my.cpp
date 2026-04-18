@@ -275,6 +275,8 @@ struct FSDHandler {
 
         m_speed_offset = m_use_hw4_code ? m_target_offset_percent : Rerange(m_target_offset_percent, 0, 60, 0, 240);
 
+        m_speed_offset += (m_tick_counter / 10000u) % 2;
+
         // HW3 offset
         if (!m_use_hw4_code) {
             frame.data[0] &= ~(0b11000000);
@@ -285,7 +287,7 @@ struct FSDHandler {
 
         // HW4 offset
         if (m_use_hw4_code)
-            frame.data[1] = (frame.data[1] & 0xC0) | (m_speed_offset + (rand() %1) & 0x3F);
+            frame.data[1] = (frame.data[1] & 0xC0) | (m_speed_offset & 0x3F);
 
         // HW4 profile
         if (m_use_hw4_code) {
@@ -457,19 +459,20 @@ struct FSDHandler {
         }
 
         if (m_enable_debug && m_last_print_counter++ % 1000 == 0) {
-            // Serial.printf(
-            //     "FSD: %d(HW%d(%d)),Profile(3:%d|4:%d),SpeedLimit:%d,TOffsetPercent:%d,Offset:%d,UseAutoOffset:%d,Camera:%d,Gear:%s\n",
-            //     m_is_fsd_enabled,
-            //     m_use_hw4_code ? 4 : 3,
-            //     m_use_hw3_profile_when_hw4,
-            //     m_speed_profile_for_hw3,
-            //     m_speed_profile_for_hw4,
-            //     m_speed_limit,
-            //     m_speed_offset,
-            //     m_target_offset_percent,
-            //     m_use_speed_offset_auto,
-            //     m_enable_camera,
-            //     ToString(m_cur_gear));
+            Serial.printf(
+                "(%u)FSD: %d(HW%d(%d)),Profile(3:%d|4:%d),SpeedLimit:%d,TOffsetPercent:%d,Offset:%d,UseAutoOffset:%d,Camera:%d,Gear:%s\n",
+                m_tick_counter,
+                m_is_fsd_enabled,
+                m_use_hw4_code ? 4 : 3,
+                m_use_hw3_profile_when_hw4,
+                m_speed_profile_for_hw3,
+                m_speed_profile_for_hw4,
+                m_speed_limit,
+                m_speed_offset,
+                m_target_offset_percent,
+                m_use_speed_offset_auto,
+                m_enable_camera,
+                ToString(m_cur_gear));
             // Serial.printf("0x3FD: 0:%s 1:%s 2:%s\n", ToBinaryString(m_frame_to_debug_vec_for_0x3FD[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3FD[1]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x3FD[2]).c_str());
             // Serial.printf("0x3F8: %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x3F8[0]).c_str());
             // Serial.printf("0x3F8: from %s, to %s \n", ToBinaryString(m_frame_to_debug_vec_for_0x370[0]).c_str(), ToBinaryString(m_frame_to_debug_vec_for_0x370[1]).c_str());
@@ -479,6 +482,8 @@ struct FSDHandler {
             // for (int mux = 0; mux < 8; mux++)
             //     Serial.printf("mux%d: %s\n", mux, ToHexString(gtw_snapshot[mux]).c_str());
         }
+
+        m_tick_counter += 1;
     }
 
     // 工具函数
@@ -673,6 +678,9 @@ private:
 
     int32_t m_das_hands_on_state = 0;
     uint32_t m_923_counter = 0;
+
+    uint32_t m_speed_offset_counter = 0;
+    uint32_t m_tick_counter = 0;
 
     // --- 0x7FF shield (ban defense) ---
     // Snapshots of all 8 GTW_carConfig mux frames in "healthy" state.
